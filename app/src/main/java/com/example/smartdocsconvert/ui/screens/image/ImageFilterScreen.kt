@@ -1,4 +1,4 @@
-package com.example.smartdocsconvert.ui.screens
+package com.example.smartdocsconvert.ui.screens.image
 
 import android.annotation.SuppressLint
 import android.graphics.Bitmap

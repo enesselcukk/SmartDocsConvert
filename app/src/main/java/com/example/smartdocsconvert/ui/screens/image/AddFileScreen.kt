@@ -1,4 +1,4 @@
-package com.example.smartdocsconvert.ui.screens
+package com.example.smartdocsconvert.ui.screens.image
 
 import android.Manifest
 import android.content.Intent
@@ -9,8 +9,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,7 +25,6 @@ import androidx.core.content.FileProvider
 import java.io.File
 import android.os.Environment
 import android.widget.Toast
-import androidx.activity.result.ActivityResultLauncher
 import androidx.compose.ui.draw.clip
 import com.example.smartdocsconvert.util.NotificationUtil
 import androidx.navigation.NavController

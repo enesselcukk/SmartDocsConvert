@@ -14,31 +14,17 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.smartdocsconvert.ui.navigation.Screen
-import com.example.smartdocsconvert.ui.screens.ToolsScreen
 import com.example.smartdocsconvert.ui.screens.HomeScreen
-import com.example.smartdocsconvert.ui.screens.AddFileScreen
-import com.example.smartdocsconvert.ui.screens.ImageEditorScreen
-import com.example.smartdocsconvert.ui.screens.ImageFilterScreen
-import com.example.smartdocsconvert.ui.screens.ConvertFileScreen
+import com.example.smartdocsconvert.ui.screens.image.AddFileScreen
+import com.example.smartdocsconvert.ui.screens.image.ImageEditorScreen
+import com.example.smartdocsconvert.ui.screens.image.ImageFilterScreen
+import com.example.smartdocsconvert.ui.screens.file.ConvertFileScreen
 import com.example.smartdocsconvert.ui.theme.SmartDocsConvertTheme
 import dagger.hilt.android.AndroidEntryPoint
 import java.net.URLDecoder
-import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.*
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.dp
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
