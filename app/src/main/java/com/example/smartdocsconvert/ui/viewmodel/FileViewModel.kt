@@ -19,6 +19,29 @@ class FileViewModel @Inject constructor() : ViewModel() {
     private val _uiState = MutableStateFlow<FileUiState>(FileUiState.Initial)
     val uiState: StateFlow<FileUiState> = _uiState
 
+    // Picker event state flows
+    private val _filePickerRequested = MutableStateFlow(false)
+    val filePickerRequested: StateFlow<Boolean> = _filePickerRequested
+    
+    private val _galleryPickerRequested = MutableStateFlow(false)
+    val galleryPickerRequested: StateFlow<Boolean> = _galleryPickerRequested
+
+    fun openFilePicker() {
+        _filePickerRequested.value = true
+    }
+    
+    fun openGalleryPicker() {
+        _galleryPickerRequested.value = true
+    }
+    
+    fun onFilePickerCompleted() {
+        _filePickerRequested.value = false
+    }
+    
+    fun onGalleryPickerCompleted() {
+        _galleryPickerRequested.value = false
+    }
+
     fun onImagesSelected(uris: List<Uri>, context: Context) {
         viewModelScope.launch {
             try {

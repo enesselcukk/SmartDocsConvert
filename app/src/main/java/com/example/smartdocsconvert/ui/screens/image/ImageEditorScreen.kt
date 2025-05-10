@@ -27,6 +27,7 @@ import java.nio.charset.StandardCharsets
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
+import com.example.smartdocsconvert.ui.navigation.Screen
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -90,7 +91,7 @@ fun ImageEditorScreen(
                                 URLEncoder.encode(uri.toString(), StandardCharsets.UTF_8.toString())
                             }
                             val urisString = encodedUris.joinToString(",")
-                            navController.navigate("image_filter/$urisString")
+                            navController.navigate(Screen.ImageFilter.createImageFilterRoute(urisString))
                         }
                     ) {
                         Icon(

@@ -284,27 +284,3 @@ private fun ConversionSuccessContent(
         }
     )
 }
-
-@Composable
-private fun FileTypeButton(
-    text: String,
-    mimeType: String,
-    onSelect: (List<Uri>) -> Unit
-) {
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetMultipleContents()
-    ) { uris -> onSelect(uris) }
-
-    Button(
-        onClick = { launcher.launch(mimeType) },
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-        )
-    ) {
-        Text(text)
-    }
-} 
