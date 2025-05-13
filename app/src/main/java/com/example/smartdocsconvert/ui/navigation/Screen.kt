@@ -8,15 +8,14 @@ sealed class Screen(
     val icon: Int
 ) {
     object Home : Screen("home", "Home", R.drawable.ic_home)
-    object AddFile : Screen("add_file", "Add file", R.drawable.ic_add)
-    object Tools : Screen("tools?files={files}", "Tools", R.drawable.ic_tools) {
-        fun createRoute(files: List<String>) = "tools?files=${files.joinToString(",")}"
-    }
     object FileConverter : Screen("convert_file", "Convert File", 0)
-    object ImageFilter : Screen("image_filter", "Image Filter", 0) {
-        fun createImageFilterRoute(imageUris: String) = "image_filter/$imageUris"
+    object SelectedImage : Screen("selected_image", "Selected Image", 0) {
+        fun selectedImageFilterRoute(imageUris: String) = "selected_image/$imageUris"
     }
-    object ImageEditor : Screen("image_editor/{imageUris}", "Image Editor", 0) {
-        fun createRoute(imageUris: String) = "image_editor/$imageUris"
+    object Filter : Screen("filter", "Filter", 0) {
+        fun createRoute(selectedImages: String) = "filter/$selectedImages"
     }
+
+    object SelectPermissions : Screen("select_permissions", "Select Permissions", 0)
+
 } 

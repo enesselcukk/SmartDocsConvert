@@ -91,6 +91,9 @@ dependencies {
     // WorkManager
     implementation("androidx.work:work-runtime-ktx:2.9.0")
 
+    // ExifInterface for image orientation handling
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
+
 }
 
 kapt {

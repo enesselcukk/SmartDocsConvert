@@ -24,6 +24,8 @@ import com.example.smartdocsconvert.R
 import kotlin.math.*
 import android.graphics.Paint
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.smartdocsconvert.ui.viewmodel.ImageFilterViewModel
 
 // Shape data classes and enums
 data class ShapeItem(
@@ -48,8 +50,12 @@ data class BrushStroke(
 )
 
 @Composable
-fun ShapesOverlay() {
-    var shapes by remember { mutableStateOf<List<ShapeItem>>(emptyList()) }
+fun ShapesOverlay(
+    viewModel: ImageFilterViewModel = hiltViewModel(),
+    initialShapes: List<ShapeItem> = emptyList(),
+    onShapesChanged: (List<ShapeItem>) -> Unit = {}
+) {
+    var shapes by remember { mutableStateOf(initialShapes) }
     var selectedShape by remember { mutableStateOf<ShapeType?>(null) }
     val selectedColor by remember { mutableStateOf(Color.White) }
     val strokeWidth by remember { mutableFloatStateOf(4f) }
@@ -60,6 +66,16 @@ fun ShapesOverlay() {
     val isResizing by remember { mutableStateOf(false) }
     var showTextInput by remember { mutableStateOf(false) }
     var lastTapPosition by remember { mutableStateOf(Offset.Zero) }
+    
+    // Initialize shapes from ViewModel
+    LaunchedEffect(initialShapes) {
+        shapes = initialShapes
+    }
+
+    // When shapes change, propagate to the caller
+    LaunchedEffect(shapes) {
+        onShapesChanged(shapes)
+    }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         // Drawing area
@@ -87,6 +103,7 @@ fun ShapesOverlay() {
                                         strokeWidth = strokeWidth
                                     )
                                     shapes = shapes + newShape
+                                    viewModel.addShape(newShape)
                                 }
                                 ShapeType.BRUSH -> {} // Brush is handled separately
                                 null -> {} // Handle null case
@@ -267,6 +284,7 @@ fun ShapesOverlay() {
                         size = 40f
                     )
                     shapes = shapes + newShape
+                    viewModel.addShape(newShape)
                 }
                 showTextInput = false
             },
@@ -332,68 +350,10 @@ private fun drawArrow(path: Path, start: Offset, size: Float) {
     path.lineTo(start.x + arrowLength - headLength, start.y + headWidth)
 }
 
-private fun getBounds(shape: ShapeItem): Rect {
-    return when (shape.type) {
-        ShapeType.RECTANGLE -> Rect(
-            shape.position.x,
-            shape.position.y,
-            shape.position.x + shape.size,
-            shape.position.y + shape.size
-        )
-        ShapeType.CIRCLE -> Rect(
-            shape.position.x - shape.size / 2,
-            shape.position.y - shape.size / 2,
-            shape.position.x + shape.size / 2,
-            shape.position.y + shape.size / 2
-        )
-        ShapeType.HEART, ShapeType.STAR -> Rect(
-            shape.position.x - shape.size / 2,
-            shape.position.y - shape.size / 2,
-            shape.position.x + shape.size / 2,
-            shape.position.y + shape.size / 2
-        )
-        ShapeType.ARROW -> Rect(
-            shape.position.x,
-            shape.position.y - shape.size / 4,
-            shape.position.x + shape.size,
-            shape.position.y + shape.size / 4
-        )
-        ShapeType.TEXT -> Rect(
-            shape.position.x,
-            shape.position.y,
-            shape.position.x + shape.size * shape.text.length,
-            shape.position.y + shape.size
-        )
-        ShapeType.BRUSH -> Rect(0f, 0f, 0f, 0f)
-    }
-}
 
 private operator fun Rect.contains(point: Offset): Boolean {
     return point.x >= left && point.x <= right && point.y >= top && point.y <= bottom
 }
-
-private fun getRotationHandle(bounds: Rect): Rect {
-    val handleSize = 20f
-    return Rect(
-        bounds.center.x - handleSize,
-        bounds.top - handleSize * 2,
-        bounds.center.x + handleSize,
-        bounds.top
-    )
-}
-
-private fun getResizeHandle(bounds: Rect): Rect {
-    val handleSize = 20f
-    return Rect(
-        bounds.right - handleSize,
-        bounds.bottom - handleSize,
-        bounds.right + handleSize,
-        bounds.bottom + handleSize
-    )
-}
-
-private val Rect.center: Offset
-    get() = Offset((left + right) / 2f, (top + bottom) / 2f)
 
 @Composable
 private fun ShapeButton(

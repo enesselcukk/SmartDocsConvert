@@ -2,12 +2,37 @@ package com.example.smartdocsconvert.ui.screens.image
 
 import android.net.Uri
 import androidx.compose.animation.animateColor
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -16,33 +41,25 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example.smartdocsconvert.R
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Text
-import com.example.smartdocsconvert.ui.navigation.Screen
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ImageEditorScreen(
-    navController: NavController,
+fun SelectedImageScreen(
+    selectedImage: (String) -> Unit,
+    navigateUp: () -> Unit,
     imageUris: List<Uri>
 ) {
-    val scope = rememberCoroutineScope()
     var currentImageIndex by remember { mutableIntStateOf(0) }
     val isLoading by remember { mutableStateOf(false) }
     var scale by remember { mutableFloatStateOf(1f) }
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
-    var selectedFeature by remember { mutableStateOf<String?>(null) }
 
     // Pulse animation for the continue icon
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
@@ -76,7 +93,7 @@ fun ImageEditorScreen(
                     titleContentColor = Color.White
                 ),
                 navigationIcon = {
-                    IconButton(onClick = { navController.navigateUp() }) {
+                    IconButton(onClick = { navigateUp() }) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_back),
                             contentDescription = "Back",
@@ -91,7 +108,7 @@ fun ImageEditorScreen(
                                 URLEncoder.encode(uri.toString(), StandardCharsets.UTF_8.toString())
                             }
                             val urisString = encodedUris.joinToString(",")
-                            navController.navigate(Screen.ImageFilter.createImageFilterRoute(urisString))
+                            selectedImage(urisString)
                         }
                     ) {
                         Icon(
