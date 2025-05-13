@@ -49,7 +49,6 @@ fun NavGraph(
 
             SelectedImageScreen(
                 selectedImage = { selectedImagesString ->
-                    // Seçilen resimleri FilterScreen'e yönlendir
                     navController.navigate(Screen.Filter.createRoute(selectedImagesString))
                 }, 
                 navigateUp = {

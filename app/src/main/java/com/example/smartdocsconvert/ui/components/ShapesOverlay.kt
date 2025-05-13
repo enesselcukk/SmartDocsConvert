@@ -352,7 +352,7 @@ private fun drawArrow(path: Path, start: Offset, size: Float) {
 
 
 private operator fun Rect.contains(point: Offset): Boolean {
-    return point.x >= left && point.x <= right && point.y >= top && point.y <= bottom
+    return point.x in left..right && point.y >= top && point.y <= bottom
 }
 
 @Composable

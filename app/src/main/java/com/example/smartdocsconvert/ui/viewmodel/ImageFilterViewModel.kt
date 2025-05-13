@@ -407,8 +407,7 @@ class ImageFilterViewModel @Inject constructor(
                     selectedFilter,
                     brightness,
                     contrast,
-                    filterIntensity,
-                    rotationAngle
+                    filterIntensity
                 )
                 
                 _uiState.update {

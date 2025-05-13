@@ -257,7 +257,6 @@ class ImageRepository @Inject constructor(
         filterName: String,
         brightness: Float,
         contrast: Float,
-        intensity: Float,
         rotationAngle: Float
     ): String {
         return withContext(Dispatchers.IO) {
@@ -271,7 +270,6 @@ class ImageRepository @Inject constructor(
                     filterName,
                     brightness,
                     contrast,
-                    intensity
                 )
                 
                 val colorMatrixFilter = ColorMatrixColorFilter(androidColorMatrix)
@@ -379,8 +377,7 @@ class ImageRepository @Inject constructor(
         colorMatrix: ColorMatrix,
         filterName: String,
         brightness: Float,
-        contrast: Float,
-        intensity: Float
+        contrast: Float
     ) {
         when (filterName) {
             "Original" -> {
@@ -410,8 +407,7 @@ class ImageRepository @Inject constructor(
                 )
                 colorMatrix.set(matrixValues)
             }
-            
-            // Diğer filtreler için benzer kod...
+
             else -> {
                 // Default to original
                 val scale = contrast
