@@ -1,15 +1,5 @@
-
 package com.example.smartdocsconvert.ui.screens.file
 
-import android.Manifest
-import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.net.Uri
-import android.os.Build
-import android.os.Environment
-import android.provider.MediaStore
-import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
@@ -43,8 +33,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -53,11 +41,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.core.content.ContextCompat
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.smartdocsconvert.R
+import com.example.smartdocsconvert.ui.components.EmptyFileState
+import com.example.smartdocsconvert.ui.components.FileItem
+import com.example.smartdocsconvert.ui.components.FileTypeChip
+import com.example.smartdocsconvert.ui.components.LoadingAnimation
+import com.example.smartdocsconvert.ui.components.NoPermissionState
+import com.example.smartdocsconvert.ui.viewmodel.FileConverterViewModel
+import com.example.smartdocsconvert.util.FileUtils
+import com.example.smartdocsconvert.util.FileUtils.formatFileSize
 import java.io.File
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import kotlin.math.cos
 import kotlin.math.sin
@@ -66,7 +61,8 @@ import kotlin.math.sin
 @Composable
 fun ConvertFileScreen(
     onBackClick: () -> Unit,
-    onNextClick: (List<File>) -> Unit
+    onNextClick: (List<File>) -> Unit,
+    viewModel: FileConverterViewModel = hiltViewModel()
 ) {
     // Theme colors
     val primaryColor = Color(0xFFFF4444)
@@ -77,18 +73,40 @@ fun ConvertFileScreen(
     val accentColor = Color(0xFF4ECDC4)
     
     // App state
-    var selectedType by remember { mutableStateOf("DOC") }
-    val fileTypes = listOf("DOC", "DOCX", "PDF", "PPT", "PPTX", "XLS", "XLSX", "TXT")
     val context = LocalContext.current
-    var files by remember { mutableStateOf<List<File>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(false) }
-    var selectedFiles by remember { mutableStateOf<Set<File>>(emptySet()) }
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
-    var hasPermission by remember { mutableStateOf(checkPermissions(context)) }
-    var showPermissionDialog by remember { mutableStateOf(false) }
-    var permissionRequestCount by remember { mutableStateOf(0) }
     
-    // Animations
+    // İzinleri kontrol et
+    LaunchedEffect(Unit) {
+        viewModel.checkPermissions(context)
+    }
+    
+    // Dosya tipi değiştiğinde dosyaları yükle
+    LaunchedEffect(uiState.selectedType, uiState.hasPermission) {
+        if (uiState.hasPermission) {
+            viewModel.refreshFiles(context)
+        }
+    }
+    
+    // İzin isteme launcher'ı
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.values.all { it }
+        viewModel.handlePermissionResult(allGranted)
+    }
+    
+    // Dosya seçici için launcher
+    val filePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            viewModel.copyFileFromUri(context, uri)
+        }
+    }
+    
+    // Arka plan animasyonu
     val infiniteTransition = rememberInfiniteTransition(label = "")
     val gradientAngle by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -116,101 +134,27 @@ fun ConvertFileScreen(
             y = sin(Math.toRadians((gradientAngle + 180f).toDouble())).toFloat() * 1000f
         )
     )
-
-    // İzin isteme launcher'ı
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        val allGranted = permissions.values.all { it }
-        hasPermission = allGranted
-        
-        if (!allGranted && permissionRequestCount > 0) {
-            // İzinler reddedildiyse ve en az bir kere izin istedik, dialoga göster
-            showPermissionDialog = true
-        }
-        
-        permissionRequestCount++
-    }
-
-    // İzinleri kontrol et ve uygulama ilk başladığında iste
-    LaunchedEffect(Unit) {
-        if (!hasPermission) {
-            requestStoragePermissions(permissionLauncher)
-        }
-    }
-
-    // Permission Dialog
-    if (showPermissionDialog) {
+    
+    // İzin reddedildi dialoga
+    if (uiState.showPermissionDialog) {
         PermissionDeniedDialog(
             onGoToSettings = {
-                openAppSettings(context)
-                showPermissionDialog = false
+                FileUtils.openAppSettings(context)
+                viewModel.dismissPermissionDialog()
             },
             onClose = {
-                showPermissionDialog = false
+                viewModel.dismissPermissionDialog()
             }
         )
     }
 
-    // Dosya türü değiştiğinde dosyaları yükle
-    LaunchedEffect(selectedType, hasPermission) {
-        if (hasPermission) {
-            isLoading = true
-            try {
-                files = getFilesByType(context, selectedType)
-            } finally {
-                isLoading = false
-            }
-        }
-    }
-
-    // Dosya seçici için launcher
-    val filePicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        uri?.let {
-            scope.launch {
-                isLoading = true
-                try {
-                    val fileName = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                        val nameIndex = cursor.getColumnIndex(MediaStore.MediaColumns.DISPLAY_NAME)
-                        cursor.moveToFirst()
-                        cursor.getString(nameIndex)
-                    } ?: "document_${System.currentTimeMillis()}.${selectedType.lowercase()}"
-
-                    val destinationFile = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), fileName)
-                    
-                    withContext(Dispatchers.IO) {
-                        context.contentResolver.openInputStream(uri)?.use { input ->
-                            destinationFile.outputStream().use { output ->
-                                input.copyTo(output)
-                            }
-                        }
-                    }
-
-                    // Dosya uzantısına göre seçili türü güncelle
-                    val extension = fileName.substringAfterLast('.', "").uppercase()
-                    if (fileTypes.contains(extension)) {
-                        selectedType = extension
-                    }
-                    
-                    // Dosya listesini güncelle
-                    files = getFilesByType(context, selectedType)
-                } catch (e: Exception) {
-                    android.util.Log.e("FileSearch", "Dosya kopyalama hatası", e)
-                } finally {
-                    isLoading = false
-                }
-            }
-        }
-    }
-
+    // Ana ekran yapısı
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(mainGradient)
     ) {
-        // Decorative elements
+        // Dekoratif elementler
         Box(
             modifier = Modifier
                 .size(300.dp)
@@ -246,408 +190,485 @@ fun ConvertFileScreen(
                 )
         )
         
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-        ) {
-            // Animated Top Bar
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(140.dp)
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                darkSurface,
-                                darkSurface.copy(alpha = 0.9f)
-                            )
-                        ),
-                        shape = RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp)
-                    )
-            ) {
-                // Back button and title
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = onBackClick,
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(CircleShape)
-                            .background(
-                                Brush.radialGradient(
-                                    colors = listOf(
-                                        Color.White.copy(alpha = 0.15f),
-                                        Color.White.copy(alpha = 0.05f)
-                                    ),
-                                    center = Offset.Unspecified,
-                                    radius = 40f
-                                )
-                            )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                    Text(
-                        text = "Select document",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White,
-                        modifier = Modifier.graphicsLayer {
-                            shadowElevation = 4f
-                        }
-                    )
-                    IconButton(
-                        onClick = { 
-                            if (hasPermission) {
-                                scope.launch {
-                                    isLoading = true
-                                    try {
-                                        files = getFilesByType(context, selectedType)
-                                    } finally {
-                                        isLoading = false
-                                    }
-                                }
-                            } else {
-                                requestStoragePermissions(permissionLauncher)
-                            }
-                        },
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(CircleShape)
-                            .background(
-                                Brush.radialGradient(
-                                    colors = listOf(
-                                        Color.White.copy(alpha = 0.15f),
-                                        Color.White.copy(alpha = 0.05f)
-                                    ),
-                                    center = Offset.Unspecified,
-                                    radius = 40f
-                                )
-                            )
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_folder),
-                            contentDescription = "Refresh",
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
+        // Ana içerik
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Üst çubuk
+            TopAppBar(
+                darkSurface = darkSurface,
+                primaryColor = primaryColor,
+                onBackClick = onBackClick,
+                onRefreshClick = {
+                    if (uiState.hasPermission) {
+                        viewModel.refreshFiles(context)
+                    } else {
+                        permissionLauncher.launch(FileUtils.getRequiredPermissions())
                     }
                 }
-
-                // Progress dots with lines - enhanced
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(bottom = 16.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    repeat(3) { index ->
-                        val isActive = index == 0
-                        val dotScale by animateFloatAsState(
-                            targetValue = if (isActive) 1.1f else 1f,
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessLow
-                            ),
-                            label = ""
-                        )
-                        
-                        if (isActive) {
-                            Box(
-                                modifier = Modifier
-                                    .size(18.dp)
-                                    .scale(dotScale)
-                                    .clip(CircleShape)
-                                    .background(
-                                        brush = Brush.radialGradient(
-                                            colors = listOf(
-                                                primaryColor,
-                                                primaryColor.copy(alpha = 0.7f)
-                                            ),
-                                            center = Offset.Unspecified,
-                                            radius = 30f
-                                        ),
-                                        shape = CircleShape
-                                    )
-                            )
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .size(18.dp)
-                                    .scale(dotScale)
-                                    .clip(CircleShape)
-                                    .background(
-                                        color = Color.White.copy(alpha = 0.3f),
-                                        shape = CircleShape
-                                    )
-                            )
-                        }
-                        if (index < 2) {
-                            Box(
-                                modifier = Modifier
-                                    .width(60.dp)
-                                    .height(2.dp)
-                                    .background(
-                                        Brush.horizontalGradient(
-                                            colors = listOf(
-                                                Color.White.copy(alpha = 0.4f),
-                                                Color.White.copy(alpha = 0.2f)
-                                            )
-                                        )
-                                    )
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Selected Files Count with enhanced styling
-            AnimatedVisibility(
-                visible = selectedFiles.isNotEmpty(),
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
-            ) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = primaryColor.copy(alpha = 0.1f)
-                    ),
-                    border = BorderStroke(
-                        width = 1.dp,
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                primaryColor.copy(alpha = 0.5f),
-                                primaryColor.copy(alpha = 0.2f)
-                            )
-                        )
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_check),
-                            contentDescription = null,
-                            tint = primaryColor,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        
-                        Spacer(modifier = Modifier.width(12.dp))
-                        
-                        Text(
-                            text = "${selectedFiles.size} files selected",
-                            color = primaryColor,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 16.sp
-                        )
-                    }
-                }
-            }
-
-            // File Types with enhanced styling
-            AnimatedVisibility(
-                visible = true,
-                enter = fadeIn() + expandHorizontally(),
-                exit = fadeOut() + shrinkHorizontally()
-            ) {
-                LazyRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp, bottom = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp)
-                ) {
-                    items(fileTypes) { type ->
-                        val isSelected = type == selectedType
-                        EnhancedFileTypeChip(
-                            type = type,
-                            isSelected = isSelected,
-                            onClick = { 
-                                selectedType = type
-                                selectedFiles = emptySet() // Reset selections when type changes
-                            }
-                        )
-                    }
-                }
-            }
-
-            // File List with Animations
+            )
+            
+            // Seçili dosya sayısı
+            SelectedFilesInfo(
+                selectedCount = uiState.selectedFiles.size,
+                primaryColor = primaryColor
+            )
+            
+            // Dosya tipleri listesi
+            FileTypesList(
+                fileTypes = viewModel.fileTypes,
+                selectedType = uiState.selectedType,
+                onTypeSelected = { viewModel.setFileType(it) },
+                primaryColor = primaryColor
+            )
+            
+            // Dosya listesi veya ilgili durum
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
             ) {
                 when {
-                    !hasPermission -> {
-                        EnhancedNoPermissionState(
+                    !uiState.hasPermission -> {
+                        NoPermissionState(
                             onRequestPermission = {
-                                requestStoragePermissions(permissionLauncher)
-                            }
+                                permissionLauncher.launch(FileUtils.getRequiredPermissions())
+                            },
+                            primaryColor = primaryColor
                         )
                     }
-                    isLoading -> {
-                        EnhancedLoadingAnimation()
+                    uiState.isLoading -> {
+                        LoadingAnimation(primaryColor = primaryColor)
                     }
-                    files.isEmpty() -> {
-                        EnhancedEmptyStateForFileType(
-                            fileType = selectedType,
+                    uiState.files.isEmpty() -> {
+                        EmptyFileState(
+                            fileType = uiState.selectedType,
                             onAddFileClick = {
-                                if (hasPermission) {
-                                    // Launch file picker specific to the file type
-                                    when (selectedType) {
-                                        "PDF" -> filePicker.launch("application/pdf")
-                                        "DOC", "DOCX" -> filePicker.launch("application/msword")
-                                        "PPT", "PPTX" -> filePicker.launch("application/vnd.ms-powerpoint")
-                                        "XLS", "XLSX" -> filePicker.launch("application/vnd.ms-excel")
-                                        "TXT" -> filePicker.launch("text/plain")
-                                        else -> filePicker.launch("*/*")
-                                    }
+                                if (uiState.hasPermission) {
+                                    filePicker.launch(FileUtils.getMimeTypeForFileType(uiState.selectedType))
                                 } else {
-                                    requestStoragePermissions(permissionLauncher)
+                                    permissionLauncher.launch(FileUtils.getRequiredPermissions())
                                 }
-                            }
+                            },
+                            primaryColor = primaryColor
                         )
                     }
                     else -> {
-                        LazyColumn(
-                            state = rememberLazyListState(),
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(
-                                items = files,
-                                key = { it.absolutePath }
-                            ) { file ->
-                                EnhancedFileItem(
-                                    file = file,
-                                    isSelected = selectedFiles.contains(file),
-                                    onClick = {
-                                        selectedFiles = if (selectedFiles.contains(file)) {
-                                            selectedFiles - file
-                                        } else {
-                                            selectedFiles + file
-                                        }
-                                    },
-                                    modifier = Modifier.animateItemPlacement()
-                                )
-                            }
-                        }
+                        FilesList(
+                            files = uiState.files,
+                            selectedFiles = uiState.selectedFiles,
+                            onFileClick = { viewModel.toggleFileSelection(it) },
+                            formatFileSize = FileUtils::formatFileSize,
+                            primaryColor = primaryColor
+                        )
                     }
                 }
 
-                // Bottom Buttons Row - enhanced
+                // Alt butonlar
+                BottomButtons(
+                    hasPermission = uiState.hasPermission,
+                    selectedFiles = uiState.selectedFiles,
+                    onAddFileClick = {
+                        if (uiState.hasPermission) {
+                            filePicker.launch(FileUtils.getMimeTypeForFileType(uiState.selectedType))
+                        } else {
+                            permissionLauncher.launch(FileUtils.getRequiredPermissions())
+                        }
+                    },
+                    onNextClick = { onNextClick(uiState.selectedFiles.toList()) },
+                    darkSurface = darkSurface,
+                    primaryColor = primaryColor
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Üst uygulama çubuğu
+ */
+@Composable
+private fun TopAppBar(
+    darkSurface: Color,
+    primaryColor: Color,
+    onBackClick: () -> Unit,
+    onRefreshClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(140.dp)
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        darkSurface,
+                        darkSurface.copy(alpha = 0.9f)
+                    )
+                ),
+                shape = RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp)
+            )
+    ) {
+        // Geri tuşu ve başlık
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = onBackClick,
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = 0.15f),
+                                Color.White.copy(alpha = 0.05f)
+                            ),
+                            center = Offset.Unspecified,
+                            radius = 40f
+                        )
+                    )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            
+            Text(
+                text = "Select Document",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White
+            )
+            
+            IconButton(
+                onClick = onRefreshClick,
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = 0.15f),
+                                Color.White.copy(alpha = 0.05f)
+                            ),
+                            center = Offset.Unspecified,
+                            radius = 40f
+                        )
+                    )
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_folder),
+                    contentDescription = "Refresh",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+
+        // İlerleme noktaları
+        ProgressDots(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .padding(bottom = 16.dp),
+            primaryColor = primaryColor,
+            currentStep = 1,
+            totalSteps = 3
+        )
+    }
+}
+
+/**
+ * İlerleme noktaları
+ */
+@Composable
+private fun ProgressDots(
+    modifier: Modifier = Modifier,
+    primaryColor: Color,
+    currentStep: Int,
+    totalSteps: Int
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        repeat(totalSteps) { index ->
+            val isActive = index + 1 == currentStep
+            val dotScale by animateFloatAsState(
+                targetValue = if (isActive) 1.1f else 1f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                ),
+                label = ""
+            )
+            
+            if (isActive) {
                 Box(
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        // Add File Button
-                        Button(
-                            onClick = {
-                                if (hasPermission) {
-                                    filePicker.launch("*/*")
-                                } else {
-                                    requestStoragePermissions(permissionLauncher)
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = darkSurface
+                        .size(18.dp)
+                        .graphicsLayer { scaleX = dotScale; scaleY = dotScale }
+                        .clip(CircleShape)
+                        .background(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    primaryColor,
+                                    primaryColor.copy(alpha = 0.7f)
+                                ),
+                                center = Offset.Unspecified,
+                                radius = 30f
                             ),
-                            shape = RoundedCornerShape(24.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(56.dp)
-                                .graphicsLayer {
-                                    shadowElevation = 8f
-                                },
-                            border = BorderStroke(
-                                width = 1.dp,
-                                brush = Brush.linearGradient(
-                                    colors = listOf(
-                                        Color.White.copy(alpha = 0.2f), 
-                                        Color.White.copy(alpha = 0.1f)
-                                    )
+                            shape = CircleShape
+                        )
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(18.dp)
+                        .graphicsLayer { scaleX = dotScale; scaleY = dotScale }
+                        .clip(CircleShape)
+                        .background(
+                            color = Color.White.copy(alpha = 0.3f),
+                            shape = CircleShape
+                        )
+                )
+            }
+            
+            if (index < totalSteps - 1) {
+                Box(
+                    modifier = Modifier
+                        .width(60.dp)
+                        .height(2.dp)
+                        .background(
+                            Brush.horizontalGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = 0.4f),
+                                    Color.White.copy(alpha = 0.2f)
                                 )
                             )
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_add),
-                                    contentDescription = "Add file",
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Add file",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
+                        )
+                )
+            }
+        }
+    }
+}
 
-                        // Next Button (Only visible when files are selected)
-                        AnimatedVisibility(
-                            visible = selectedFiles.isNotEmpty(),
-                            enter = fadeIn() + expandHorizontally(),
-                            exit = fadeOut() + shrinkHorizontally(),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Button(
-                                onClick = { onNextClick(selectedFiles.toList()) },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = primaryColor
-                                ),
-                                shape = RoundedCornerShape(24.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(56.dp)
-                                    .graphicsLayer {
-                                        shadowElevation = 8f
-                                    }
-                            ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.Center,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "Continue",
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_next),
-                                        contentDescription = "Next",
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                        }
+/**
+ * Seçili dosyaların bilgisi
+ */
+@Composable
+private fun SelectedFilesInfo(
+    selectedCount: Int,
+    primaryColor: Color
+) {
+    AnimatedVisibility(
+        visible = selectedCount > 0,
+        enter = expandVertically() + fadeIn(),
+        exit = shrinkVertically() + fadeOut()
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = primaryColor.copy(alpha = 0.1f)
+            ),
+            border = BorderStroke(
+                width = 1.dp,
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        primaryColor.copy(alpha = 0.5f),
+                        primaryColor.copy(alpha = 0.2f)
+                    )
+                )
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_check),
+                    contentDescription = null,
+                    tint = primaryColor,
+                    modifier = Modifier.size(20.dp)
+                )
+                
+                Spacer(modifier = Modifier.width(12.dp))
+                
+                Text(
+                    text = "$selectedCount files selected",
+                    color = primaryColor,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Dosya tipleri listesi
+ */
+@Composable
+private fun FileTypesList(
+    fileTypes: List<String>,
+    selectedType: String,
+    onTypeSelected: (String) -> Unit,
+    primaryColor: Color
+) {
+    LazyRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 16.dp, bottom = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp)
+    ) {
+        items(fileTypes) { type ->
+            val isSelected = type == selectedType
+            FileTypeChip(
+                type = type,
+                isSelected = isSelected,
+                onClick = { onTypeSelected(type) },
+                primaryColor = primaryColor
+            )
+        }
+    }
+}
+
+/**
+ * Dosya listesi
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun FilesList(
+    files: List<File>,
+    selectedFiles: Set<File>,
+    onFileClick: (File) -> Unit,
+    formatFileSize: (Long) -> String,
+    primaryColor: Color
+) {
+    LazyColumn(
+        state = rememberLazyListState(),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(
+            items = files,
+            key = { it.absolutePath }
+        ) { file ->
+            FileItem(
+                file = file,
+                isSelected = selectedFiles.contains(file),
+                onClick = { onFileClick(file) },
+                formatFileSize = formatFileSize,
+                modifier = Modifier.animateItemPlacement(),
+                primaryColor = primaryColor
+            )
+        }
+    }
+}
+
+/**
+ * Alt butonlar
+ */
+@Composable
+private fun BottomButtons(
+    hasPermission: Boolean,
+    selectedFiles: Set<File>,
+    onAddFileClick: () -> Unit,
+    onNextClick: () -> Unit,
+    darkSurface: Color,
+    primaryColor: Color
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Dosya ekle butonu
+            Button(
+                onClick = onAddFileClick,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = darkSurface
+                ),
+                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(56.dp),
+                border = BorderStroke(
+                    width = 1.dp,
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.2f),
+                            Color.White.copy(alpha = 0.1f)
+                        )
+                    )
+                )
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_add),
+                        contentDescription = "Add file",
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Add File",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            // İleri butonu (sadece dosya seçildiğinde görünür)
+            AnimatedVisibility(
+                visible = selectedFiles.isNotEmpty(),
+                enter = fadeIn() + expandHorizontally(),
+                exit = fadeOut() + shrinkHorizontally(),
+                modifier = Modifier.weight(1f)
+            ) {
+                Button(
+                    onClick = onNextClick,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = primaryColor
+                    ),
+                    shape = RoundedCornerShape(24.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Continue",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_next),
+                            contentDescription = "Next",
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
             }
@@ -897,201 +918,13 @@ private fun PermissionDeniedDialog(
     }
 }
 
-
-private suspend fun getFilesByType(context: Context, type: String): List<File> = withContext(Dispatchers.IO) {
-    val files = mutableListOf<File>()
-    val uniquePaths = HashSet<String>() // Tekrar eden dosyaları engellemek için
-    val extension = type.lowercase()
-    
-    android.util.Log.d("FileSearch", "Başlangıç: $extension uzantılı dosyalar aranıyor")
-
-    // MediaStore kullanarak harici dosyaları ara
-    try {
-        val projection = arrayOf(
-            MediaStore.Files.FileColumns.DISPLAY_NAME,
-            MediaStore.Files.FileColumns.DATA,
-            MediaStore.Files.FileColumns.SIZE,
-            MediaStore.Files.FileColumns.MIME_TYPE
-        )
-
-        // MIME type ve uzantı bazlı arama
-        val mimeType = when (extension) {
-            "pdf" -> "application/pdf"
-            "doc", "docx" -> "application/msword"
-            "ppt", "pptx" -> "application/vnd.ms-powerpoint"
-            "xls", "xlsx" -> "application/vnd.ms-excel"
-            "txt" -> "text/plain"
-            else -> null
-        }
-
-        val selection = if (mimeType != null) {
-            "${MediaStore.Files.FileColumns.MIME_TYPE} = ? OR ${MediaStore.Files.FileColumns.DISPLAY_NAME} LIKE ?"
-        } else {
-            "${MediaStore.Files.FileColumns.DISPLAY_NAME} LIKE ?"
-        }
-
-        val selectionArgs = if (mimeType != null) {
-            arrayOf(mimeType, "%.$extension")
-        } else {
-            arrayOf("%.$extension")
-        }
-
-        // External storage query
-        val queryUri = MediaStore.Files.getContentUri("external")
-        context.contentResolver.query(
-            queryUri,
-            projection,
-            selection,
-            selectionArgs,
-            "${MediaStore.Files.FileColumns.DATE_MODIFIED} DESC" // En son değiştirilenler önce
-        )?.use { cursor ->
-            val pathColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATA)
-            android.util.Log.d("FileSearch", "MediaStore cursor count: ${cursor.count}")
-            
-            while (cursor.moveToNext()) {
-                val path = cursor.getString(pathColumn)
-                val file = File(path)
-                if (file.exists() && file.isFile) {
-                    val absolutePath = file.absolutePath
-                    if (uniquePaths.add(absolutePath)) {
-                        android.util.Log.d("FileSearch", "MediaStore'dan dosya bulundu: $absolutePath")
-                        files.add(file)
-                    }
-                }
-            }
-        }
-    } catch (e: Exception) {
-        android.util.Log.e("FileSearch", "MediaStore sorgu hatası", e)
-    }
-
-    // Özel dizinleri tara
-    val specialDirs = listOf(
-        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
-        File(Environment.getExternalStorageDirectory(), "Download"),
-        File(Environment.getExternalStorageDirectory(), "Documents")
-    )
-
-    specialDirs.forEach { directory ->
-        try {
-            if (directory.exists() && directory.isDirectory) {
-                android.util.Log.d("FileSearch", "Özel dizin taranıyor: ${directory.absolutePath}")
-                searchInDirectory(directory, extension, files, uniquePaths)
-            }
-        } catch (e: SecurityException) {
-            android.util.Log.e("FileSearch", "Özel dizin erişim hatası: ${directory.absolutePath}", e)
-        }
-    }
-
-    // Uygulamanın kendi dizinlerini de tara
-    val directories = mutableListOf<File>().apply {
-        add(context.filesDir)
-        add(context.cacheDir)
-        context.getExternalFilesDir(null)?.let { add(it) }
-        context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)?.let { add(it) }
-        context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)?.let { add(it) }
-    }
-
-    android.util.Log.d("FileSearch", "Uygulama dizinleri taranıyor. Dizin sayısı: ${directories.size}")
-    
-    directories.forEach { directory ->
-        try {
-            android.util.Log.d("FileSearch", "Dizin taranıyor: ${directory.absolutePath}")
-            searchInDirectory(directory, extension, files, uniquePaths)
-        } catch (e: SecurityException) {
-            android.util.Log.e("FileSearch", "Dizin erişim hatası: ${directory.absolutePath}", e)
-        }
-    }
-
-    android.util.Log.d("FileSearch", "Tüm arama tamamlandı. Toplam bulunan dosya sayısı: ${files.size}")
-    files.forEach { file ->
-        android.util.Log.d("FileSearch", "Final liste - Dosya: ${file.absolutePath}")
-    }
-
-    files
-}
-
-private fun searchInDirectory(directory: File, extension: String, files: MutableList<File>, uniquePaths: HashSet<String>) {
-    if (!directory.exists() || !directory.isDirectory) {
-        android.util.Log.d("FileSearch", "Dizin mevcut değil veya dizin değil: ${directory.absolutePath}")
-        return
-    }
-
-    directory.listFiles()?.forEach { file ->
-        try {
-            when {
-                file.isFile && file.name.lowercase().endsWith(".$extension") -> {
-                    val absolutePath = file.absolutePath
-                    if (uniquePaths.add(absolutePath)) { // Eğer dosya yolu daha önce eklenmemişse
-                        android.util.Log.d("FileSearch", "Dizin taramasında dosya bulundu: $absolutePath")
-                        files.add(file)
-                    } else {
-                        android.util.Log.d("FileSearch", "Tekrar eden dosya atlandı: $absolutePath")
-                    }
-                }
-                file.isDirectory -> {
-                    android.util.Log.d("FileSearch", "Alt dizine giriliyor: ${file.absolutePath}")
-                    searchInDirectory(file, extension, files, uniquePaths)
-                }
-            }
-        } catch (e: SecurityException) {
-            android.util.Log.e("FileSearch", "Dosya erişim hatası: ${file.absolutePath}", e)
-        }
-    }
-}
-
-private fun formatFileSize(size: Long): String {
-    val kb = size / 1024.0
-    val mb = kb / 1024.0
-    return when {
-        mb >= 1 -> String.format("%.1f MB", mb)
-        kb >= 1 -> String.format("%.1f KB", kb)
-        else -> String.format("%d Bytes", size)
-    }
-}
-
-private fun checkPermissions(context: Context): Boolean {
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED &&
-        ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED &&
-        ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_AUDIO) == PackageManager.PERMISSION_GRANTED
-    } else {
-        ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
-    }
-}
-
-// Helper function to open app settings
-private fun openAppSettings(context: Context) {
-    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-        data = Uri.fromParts("package", context.packageName, null)
-        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    }
-    context.startActivity(intent)
-}
-
-// Helper function to request storage permissions
-private fun requestStoragePermissions(permissionLauncher: androidx.activity.result.ActivityResultLauncher<Array<String>>) {
-    val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        arrayOf(
-            Manifest.permission.READ_MEDIA_IMAGES,
-            Manifest.permission.READ_MEDIA_VIDEO,
-            Manifest.permission.READ_MEDIA_AUDIO
-        )
-    } else {
-        arrayOf(
-            Manifest.permission.READ_EXTERNAL_STORAGE
-        )
-    }
-    permissionLauncher.launch(permissions)
-}
-
 @Composable
 private fun EnhancedFileTypeChip(
     type: String,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    primaryColor: Color
 ) {
-    val primaryColor = Color(0xFFFF4444)
     val interactionSource = remember { MutableInteractionSource() }
     var isHovered by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
@@ -1419,9 +1252,9 @@ private fun EnhancedLoadingAnimation() {
 @Composable
 private fun EnhancedEmptyStateForFileType(
     fileType: String,
-    onAddFileClick: () -> Unit
+    onAddFileClick: () -> Unit,
+    primaryColor: Color
 ) {
-    val primaryColor = Color(0xFFFF4444)
     val infiniteTransition = rememberInfiniteTransition(label = "")
     
     // Animation for the icon pulsing
@@ -1605,9 +1438,9 @@ private fun EnhancedEmptyStateForFileType(
 
 @Composable
 private fun EnhancedNoPermissionState(
-    onRequestPermission: () -> Unit
+    onRequestPermission: () -> Unit,
+    primaryColor: Color
 ) {
-    val primaryColor = Color(0xFFFF4444)
     val infiniteTransition = rememberInfiniteTransition(label = "")
     val pulseAlpha by infiniteTransition.animateFloat(
         initialValue = 0.7f,
