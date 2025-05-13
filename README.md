@@ -1,4 +1,4 @@
-# SmartDocsConvert
+# PDFCrafterTemplate
 
 <p align="center">
   <img src="app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png" width="120" alt="SmartDocsConvert Logo"/>
@@ -19,7 +19,7 @@
 
 ## Features
 
-SmartDocsConvert is a modern Android application designed to handle document conversion tasks with ease:
+PDFCrafterTemplate is a modern Android application designed to handle document conversion tasks with ease:
 
 - **Document Conversion**: Convert documents to various formats
 - **Image to PDF**: Turn images from gallery or camera into PDF documents
