@@ -475,49 +475,20 @@ fun EmptyFileState(
         
         // Detailed message
         Text(
-            text = "We couldn't find any $fileType files on your device.\nYou can add files using the button below.",
+            text = "We couldn't find any $fileType files on your device.",
             fontSize = 16.sp,
             color = Color.White.copy(alpha = 0.7f),
             textAlign = TextAlign.Center,
             lineHeight = 24.sp
         )
         
-        Spacer(modifier = Modifier.height(40.dp))
-        
-        // Action button
-        Button(
-            onClick = onAddFileClick,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = fileColor
-            ),
-            shape = RoundedCornerShape(24.dp),
-            modifier = Modifier
-                .fillMaxWidth(0.8f)
-                .height(56.dp)
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_add),
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(20.dp)
-            )
-            
-            Spacer(modifier = Modifier.width(12.dp))
-            
-            Text(
-                text = "Add $fileType File",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-        }
-        
         Spacer(modifier = Modifier.height(24.dp))
         
         // Suggestion to try another format
         Text(
-            text = "Or try selecting another document format",
-            fontSize = 14.sp,
-            color = Color.White.copy(alpha = 0.5f),
+            text = "Please try selecting another document format",
+            fontSize = 16.sp,
+            color = Color.White.copy(alpha = 0.6f),
             textAlign = TextAlign.Center
         )
     }
