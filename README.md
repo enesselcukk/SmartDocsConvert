@@ -29,8 +29,6 @@ PDFCrafterTemplate is a modern Android application designed to handle document c
 
 ## Screenshots
 
-*Screenshots will be added here*
-
 ## Architecture
 
 This application is built with modern Android development practices:
