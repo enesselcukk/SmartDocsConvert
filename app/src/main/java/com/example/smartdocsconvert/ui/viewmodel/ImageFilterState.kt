@@ -24,6 +24,21 @@ data class ImageFilterState(
     val isSaving: Boolean = false,
     val isImageLoading: Boolean = false,
     val isCropped: Boolean = false,
+    val isDownloading: Boolean = false,
+    val showDownloadAnimation: Boolean = false,
+    val showDownloadOptions: Boolean = false,
+    val showDownloadConfirmation: Boolean = false,
+    
+    // Download details
+    val pendingDownloadFilename: String? = null,
+    val userEnteredFilename: String = "",
+    val pendingDownloadType: String? = null,
+    val pendingDownloadUri: Uri? = null,
+    val pendingDownloadFilter: String? = null,
+    val pendingDownloadBrightness: Float = 1f,
+    val pendingDownloadContrast: Float = 1f,
+    val pendingDownloadRotation: Float = 0f,
+    val downloadAllImages: Boolean = false,
     
     // Image edits and transformations
     val rotationAngles: List<Float> = emptyList(),

@@ -5,15 +5,13 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
 import android.graphics.Matrix
-import android.graphics.Paint
 import android.media.ExifInterface
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -56,7 +54,7 @@ class ImageRepository @Inject constructor(
                 
                 // Apply the transformation if needed
                 if (!matrix.isIdentity) {
-                    android.util.Log.d("ImageRepository", "Applying EXIF rotation: $orientation")
+                   Log.d("ImageRepository", "Applying EXIF rotation: $orientation")
                     val rotatedBitmap = Bitmap.createBitmap(
                         bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true
                     )
@@ -70,7 +68,7 @@ class ImageRepository @Inject constructor(
                 
                 return@withContext bitmap
             } catch (e: Exception) {
-                android.util.Log.e("ImageRepository", "Error loading bitmap", e)
+               Log.e("ImageRepository", "Error loading bitmap", e)
                 return@withContext null
             }
         }
@@ -86,7 +84,7 @@ class ImageRepository @Inject constructor(
     ): Uri? {
         return withContext(Dispatchers.IO) {
             try {
-                android.util.Log.d("ImageRepository", "Starting crop operation - Original params: X:$cropX, Y:$cropY, W:$cropWidth, H:$cropHeight")
+               Log.d("ImageRepository", "Starting crop operation - Original params: X:$cropX, Y:$cropY, W:$cropWidth, H:$cropHeight")
                 
                 // Step 1: Load bitmap with orientation information
                 val options = BitmapFactory.Options().apply {
@@ -102,14 +100,14 @@ class ImageRepository @Inject constructor(
                     )
                 } ?: ExifInterface.ORIENTATION_NORMAL
                 
-                android.util.Log.d("ImageRepository", "Image EXIF orientation: $exifOrientation")
+               Log.d("ImageRepository", "Image EXIF orientation: $exifOrientation")
                 
                 // Load the original image without any rotation applied
                 val originalBitmap = context.contentResolver.openInputStream(sourceUri)?.use { input ->
                     BitmapFactory.decodeStream(input, null, options)
                 } ?: return@withContext null
                 
-                android.util.Log.d("ImageRepository", "Original bitmap dimensions: ${originalBitmap.width}x${originalBitmap.height}")
+               Log.d("ImageRepository", "Original bitmap dimensions: ${originalBitmap.width}x${originalBitmap.height}")
                 
                 // Step 2: Handle EXIF orientation before cropping
                 val matrix = Matrix()
@@ -131,7 +129,7 @@ class ImageRepository @Inject constructor(
                 
                 // If image has EXIF rotation, we need to adjust the crop coordinates
                 if (needsTransformation) {
-                    android.util.Log.d("ImageRepository", "Adjusting for EXIF rotation: $rotationAngle degrees")
+                   Log.d("ImageRepository", "Adjusting for EXIF rotation: $rotationAngle degrees")
                     
                     // For 90 or 270 rotation, swap width and height
                     if (rotationAngle == 90f || rotationAngle == 270f) {
@@ -146,7 +144,7 @@ class ImageRepository @Inject constructor(
                             originalBitmap.recycle()
                         }
                         
-                        android.util.Log.d("ImageRepository", "Rotated bitmap dimensions: ${bitmapToCrop.width}x${bitmapToCrop.height}")
+                       Log.d("ImageRepository", "Rotated bitmap dimensions: ${bitmapToCrop.width}x${bitmapToCrop.height}")
                     }
                 }
                 
@@ -156,7 +154,7 @@ class ImageRepository @Inject constructor(
                 adjustedCropWidth = adjustedCropWidth.coerceIn(1, bitmapToCrop.width - adjustedCropX)
                 adjustedCropHeight = adjustedCropHeight.coerceIn(1, bitmapToCrop.height - adjustedCropY)
                 
-                android.util.Log.d("ImageRepository", "Final crop parameters: X:$adjustedCropX, Y:$adjustedCropY, W:$adjustedCropWidth, H:$adjustedCropHeight")
+               Log.d("ImageRepository", "Final crop parameters: X:$adjustedCropX, Y:$adjustedCropY, W:$adjustedCropWidth, H:$adjustedCropHeight")
                 
                 // Step 3: Perform the crop operation
                 val croppedBitmap = try {
@@ -168,12 +166,12 @@ class ImageRepository @Inject constructor(
                         adjustedCropHeight
                     )
                 } catch (e: Exception) {
-                    android.util.Log.e("ImageRepository", "Error creating cropped bitmap: ${e.message}", e)
+                   Log.e("ImageRepository", "Error creating cropped bitmap: ${e.message}", e)
                     bitmapToCrop.recycle()
                     return@withContext null
                 }
                 
-                android.util.Log.d("ImageRepository", "Cropped bitmap dimensions: ${croppedBitmap.width}x${croppedBitmap.height}")
+               Log.d("ImageRepository", "Cropped bitmap dimensions: ${croppedBitmap.width}x${croppedBitmap.height}")
                 
                 // If bitmapToCrop is not the same as croppedBitmap, and not the same as originalBitmap, recycle it
                 if (bitmapToCrop != croppedBitmap && bitmapToCrop != originalBitmap) {
@@ -202,15 +200,15 @@ class ImageRepository @Inject constructor(
                     
                     croppedBitmap.recycle()
                     
-                    android.util.Log.d("ImageRepository", "Successfully saved cropped image to: ${imageFile.path}")
+                   Log.d("ImageRepository", "Successfully saved cropped image to: ${imageFile.path}")
                     return@withContext Uri.fromFile(imageFile)
                 } catch (e: Exception) {
-                    android.util.Log.e("ImageRepository", "Error saving cropped image: ${e.message}", e)
+                   Log.e("ImageRepository", "Error saving cropped image: ${e.message}", e)
                     croppedBitmap.recycle()
                     return@withContext null
                 }
             } catch (e: Exception) {
-                android.util.Log.e("ImageRepository", "Unexpected error in crop operation: ${e.message}", e)
+               Log.e("ImageRepository", "Unexpected error in crop operation: ${e.message}", e)
                 return@withContext null
             }
         }
@@ -231,7 +229,7 @@ class ImageRepository @Inject constructor(
                         ExifInterface.ORIENTATION_NORMAL
                     )
                 } catch (e: Exception) {
-                    android.util.Log.e("ImageRepository", "Error reading EXIF orientation", e)
+                   Log.e("ImageRepository", "Error reading EXIF orientation", e)
                     ExifInterface.ORIENTATION_NORMAL
                 }
             } ?: ExifInterface.ORIENTATION_NORMAL
@@ -247,7 +245,7 @@ class ImageRepository @Inject constructor(
             
             return Pair(bitmap, orientation)
         } catch (e: Exception) {
-            android.util.Log.e("ImageRepository", "Error loading bitmap with orientation", e)
+           Log.e("ImageRepository", "Error loading bitmap with orientation", e)
             return null
         }
     }
@@ -263,46 +261,14 @@ class ImageRepository @Inject constructor(
             try {
                 val bitmap = loadBitmap(sourceUri) ?: return@withContext "Görüntü yüklenemedi"
                 
-                // Apply filters and effects
-                val androidColorMatrix = ColorMatrix()
-                applyColorMatrixForFilter(
-                    androidColorMatrix,
-                    filterName,
-                    brightness,
-                    contrast,
+                // Process the image using ImageProcessingUtil
+                val resultBitmap = com.example.smartdocsconvert.util.ImageProcessingUtil.processImage(
+                    sourceBitmap = bitmap,
+                    filterName = filterName,
+                    brightness = brightness,
+                    contrast = contrast,
+                    rotationAngle = rotationAngle
                 )
-                
-                val colorMatrixFilter = ColorMatrixColorFilter(androidColorMatrix)
-                val paint = Paint().apply {
-                    colorFilter = colorMatrixFilter
-                }
-                
-                // Apply rotation if needed
-                val rotatedBitmap = if (rotationAngle != 0f) {
-                    val rotationMatrix = Matrix().apply {
-                        postRotate(rotationAngle)
-                    }
-                    Bitmap.createBitmap(
-                        bitmap,
-                        0,
-                        0,
-                        bitmap.width,
-                        bitmap.height,
-                        rotationMatrix,
-                        true
-                    )
-                } else {
-                    bitmap
-                }
-                
-                // Draw the processed image to a canvas
-                val resultBitmap = Bitmap.createBitmap(
-                    rotatedBitmap.width,
-                    rotatedBitmap.height,
-                    Bitmap.Config.ARGB_8888
-                )
-                val canvas = android.graphics.Canvas(resultBitmap)
-                canvas.drawBitmap(rotatedBitmap, 0f, 0f, paint)
                 
                 // Save the file
                 val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
@@ -328,9 +294,6 @@ class ImageRepository @Inject constructor(
                         }
                         
                         // Clean up
-                        if (rotatedBitmap != bitmap) {
-                            rotatedBitmap.recycle()
-                        }
                         bitmap.recycle()
                         resultBitmap.recycle()
                         
@@ -357,9 +320,6 @@ class ImageRepository @Inject constructor(
                     context.sendBroadcast(mediaScanIntent)
                     
                     // Clean up
-                    if (rotatedBitmap != bitmap) {
-                        rotatedBitmap.recycle()
-                    }
                     bitmap.recycle()
                     resultBitmap.recycle()
                     
@@ -369,57 +329,6 @@ class ImageRepository @Inject constructor(
                 return@withContext "Kayıt sırasında bir hata oluştu"
             } catch (e: Exception) {
                 return@withContext "Görüntü kaydedilirken hata oluştu: ${e.message}"
-            }
-        }
-    }
-    
-    private fun applyColorMatrixForFilter(
-        colorMatrix: ColorMatrix,
-        filterName: String,
-        brightness: Float,
-        contrast: Float
-    ) {
-        when (filterName) {
-            "Original" -> {
-                val scale = contrast
-                val translate = (-.5f * scale + .5f) * 255f
-                
-                val matrixValues = floatArrayOf(
-                    brightness * scale, 0f, 0f, 0f, translate,
-                    0f, brightness * scale, 0f, 0f, translate,
-                    0f, 0f, brightness * scale, 0f, translate,
-                    0f, 0f, 0f, 1f, 0f
-                )
-                colorMatrix.set(matrixValues)
-            }
-            
-            "Clarendon" -> {
-                val warmth = 1.1f
-                val filterBrightness = 1.1f * brightness
-                val scale = contrast * 1.2f
-                val translate = (-.5f * scale + .5f) * 255f
-                
-                val matrixValues = floatArrayOf(
-                    (1.2f * warmth) * scale * filterBrightness, 0f, 0f, 0f, translate,
-                    0f, 1.1f * scale * filterBrightness, 0f, 0f, translate,
-                    0f, 0f, scale * filterBrightness, 0f, translate + 5f,
-                    0f, 0f, 0f, 1f, 0f
-                )
-                colorMatrix.set(matrixValues)
-            }
-
-            else -> {
-                // Default to original
-                val scale = contrast
-                val translate = (-.5f * scale + .5f) * 255f
-                
-                val matrixValues = floatArrayOf(
-                    brightness * scale, 0f, 0f, 0f, translate,
-                    0f, brightness * scale, 0f, 0f, translate,
-                    0f, 0f, brightness * scale, 0f, translate,
-                    0f, 0f, 0f, 1f, 0f
-                )
-                colorMatrix.set(matrixValues)
             }
         }
     }

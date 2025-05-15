@@ -62,6 +62,10 @@ import com.example.smartdocsconvert.ui.components.autoEnhanceImage
 import com.example.smartdocsconvert.ui.components.rememberImageTransformableState
 import com.example.smartdocsconvert.ui.theme.FilterColors
 import com.example.smartdocsconvert.ui.viewmodel.ImageFilterViewModel
+import com.example.smartdocsconvert.ui.components.DownloadOptionsDialog
+import com.example.smartdocsconvert.ui.components.DownloadAnimation
+import com.example.smartdocsconvert.ui.components.AnimatedSaveButton
+import com.example.smartdocsconvert.ui.components.DownloadConfirmationDialog
 
 @SuppressLint("RememberReturnType")
 @Composable
@@ -109,15 +113,23 @@ fun FilterScreen(
         }
     )
 
+    // Handle toast messages
+    LaunchedEffect(uiState.toastMessage) {
+        uiState.toastMessage?.let {
+            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+            viewModel.clearToastMessage()
+        }
+    }
+
     Scaffold(
         topBar = {
             FilterTopAppBar(
                 onBackClick = {
-                            scope.launch {
-                                // Exit animation
-                                contentAlpha.animateTo(0f, tween(300))
-                                bottomBarHeight.animateTo(0f, tween(300))
-                                navigateUp()
+                    scope.launch {
+                        // Exit animation
+                        contentAlpha.animateTo(0f, tween(300))
+                        bottomBarHeight.animateTo(0f, tween(300))
+                        navigateUp()
                     }
                 }
             )
@@ -153,7 +165,7 @@ fun FilterScreen(
                                 val currentCropRect = if (uiState.cropRect == Rect(0f, 0f, 1f, 1f)) {
                                     // If using the full default rect, use a more reasonable one instead
                                     defaultCropRect
-                        } else {
+                                } else {
                                     uiState.cropRect
                                 }
                                 
@@ -167,9 +179,9 @@ fun FilterScreen(
                                 )
                             } else {
                                 // Handle error case - show a message or fallback UI
-                                    Text(
+                                Text(
                                     text = "No image available to crop",
-                                        color = Color.White,
+                                    color = Color.White,
                                     modifier = Modifier.padding(16.dp)
                                 )
                             }
@@ -181,7 +193,7 @@ fun FilterScreen(
                                     uiState = uiState,
                                     transformableState = transformableState,
                                     onImageChanged = { index ->
-                                    scope.launch {
+                                        scope.launch {
                                             animateImageTransition(
                                                 currentIndex = uiState.currentImageIndex,
                                                 newIndex = index,
@@ -194,9 +206,9 @@ fun FilterScreen(
                                 )
                             } else {
                                 // Handle error case - show a message or fallback UI
-                        Text(
+                                Text(
                                     text = "No images available to edit",
-                            color = Color.White,
+                                    color = Color.White,
                                     modifier = Modifier.padding(16.dp)
                                 )
                             }
@@ -207,6 +219,9 @@ fun FilterScreen(
                     if (uiState.isLoading || uiState.isImageLoading) {
                         LoadingOverlay()
                     }
+                    
+                    // Download animation
+                    DownloadAnimation(visible = uiState.showDownloadAnimation)
                 }
 
                 // Feature-specific controls
@@ -227,36 +242,70 @@ fun FilterScreen(
                             translationY = (1f - bottomBarHeight.value) * 100f
                         }
                 ) {
-                    FilterBottomNavigation(
-                        activeFeature = uiState.activeFeature,
-                        onFeatureClick = { feature ->
-                            // Only process feature clicks if we have valid images
-                            if (uiState.processedImageUris.isNotEmpty()) {
-                                        when (feature) {
-                                            "auto" -> {
-                                        if (uiState.activeFeature == "auto") {
-                                            viewModel.resetImageAdjustments()
-                                            viewModel.updateActiveFeature(null)
-                                                } else {
-                                            viewModel.updateActiveFeature("auto")
-                                                    scope.launch {
-                                                autoEnhanceImage(context, uiState, viewModel)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                    ) {
+                        FilterBottomNavigation(
+                            activeFeature = uiState.activeFeature,
+                            onFeatureClick = { feature ->
+                                // Only process feature clicks if we have valid images
+                                if (uiState.processedImageUris.isNotEmpty()) {
+                                    when (feature) {
+                                        "auto" -> {
+                                            if (uiState.activeFeature == "auto") {
+                                                viewModel.resetImageAdjustments()
+                                                viewModel.updateActiveFeature(null)
+                                            } else {
+                                                viewModel.updateActiveFeature("auto")
+                                                scope.launch {
+                                                    autoEnhanceImage(context, uiState, viewModel)
+                                                }
                                             }
                                         }
+                                        "rotate" -> viewModel.rotateImage()
+                                        else -> viewModel.updateActiveFeature(
+                                            if (uiState.activeFeature == feature) null else feature
+                                        )
                                     }
-                                    "rotate" -> viewModel.rotateImage()
-                                    else -> viewModel.updateActiveFeature(
-                                        if (uiState.activeFeature == feature) null else feature
-                                    )
+                                } else {
+                                    // Show a toast if no images available
+                                    Toast.makeText(context, "No images available to edit", Toast.LENGTH_SHORT).show()
                                 }
-                            } else {
-                                // Show a toast if no images available
-                                Toast.makeText(context, "No images available to edit", Toast.LENGTH_SHORT).show()
                             }
+                        )
+                        
+                        // Only show the download button if we have images and no feature is currently active
+                        if (uiState.processedImageUris.isNotEmpty() && uiState.activeFeature == null) {
+                            AnimatedSaveButton(
+                                onClick = { viewModel.toggleDownloadOptions() },
+                                modifier = Modifier.align(Alignment.CenterEnd)
+                            )
                         }
-                    )
+                    }
                 }
             }
+            
+            // Download options dialog
+            DownloadOptionsDialog(
+                visible = uiState.showDownloadOptions,
+                onDismiss = { viewModel.hideDownloadOptions() },
+                onSaveAsImage = { viewModel.prepareImageDownload() },
+                onSaveAsPdf = { viewModel.preparePdfDownload() }
+            )
+            
+            // Download confirmation dialog
+            DownloadConfirmationDialog(
+                visible = uiState.showDownloadConfirmation,
+                filename = uiState.pendingDownloadFilename ?: "",
+                downloadType = uiState.pendingDownloadType,
+                onConfirm = { viewModel.confirmDownload() },
+                onCancel = { viewModel.cancelDownload() },
+                onFilenameChanged = { viewModel.updateDownloadFilename(it) },
+                onDownloadAllChanged = { viewModel.updateDownloadAllImages(it) },
+                downloadAll = uiState.downloadAllImages
+            )
         }
     }
 }

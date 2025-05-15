@@ -89,7 +89,7 @@ dependencies {
     implementation("androidx.compose.foundation:foundation")
 
     // WorkManager
-    implementation("androidx.work:work-runtime-ktx:2.9.0")
+    implementation("androidx.work:work-runtime-ktx:2.8.1")
 
     // ExifInterface for image orientation handling
     implementation("androidx.exifinterface:exifinterface:1.3.7")

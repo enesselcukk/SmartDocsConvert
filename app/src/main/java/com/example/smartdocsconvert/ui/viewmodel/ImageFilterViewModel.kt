@@ -1,46 +1,36 @@
 package com.example.smartdocsconvert.ui.viewmodel
 
-import android.content.ContentValues
 import android.content.Context
-import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
-import android.graphics.Matrix
-import android.graphics.Paint
 import android.net.Uri
-import android.os.Build
-import android.os.Environment
-import android.provider.MediaStore
-import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.FileOutputStream
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import javax.inject.Inject
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.unit.IntSize
-import android.app.Application
+import androidx.core.content.FileProvider
 import com.example.smartdocsconvert.data.repository.ImageRepository
 import com.example.smartdocsconvert.ui.components.ShapeItem
+import kotlinx.coroutines.delay
+import androidx.work.WorkManager
+import com.example.smartdocsconvert.worker.DownloadWorker
+import androidx.work.WorkInfo
+import androidx.lifecycle.Observer
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.*
+import kotlin.random.Random
+import androidx.work.OneTimeWorkRequest
 
 @HiltViewModel
 class ImageFilterViewModel @Inject constructor(
-    private val imageRepository: ImageRepository
+    private val imageRepository: ImageRepository,
+    @ApplicationContext private val applicationContext: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ImageFilterState())
@@ -399,7 +389,6 @@ class ImageFilterViewModel @Inject constructor(
                 val brightness = currentState.brightnessValues.getOrNull(currentState.currentImageIndex) ?: 1f
                 val contrast = currentState.contrastValues.getOrNull(currentState.currentImageIndex) ?: 1f
                 val filterIntensity = currentState.filterIntensityValues.getOrNull(currentState.currentImageIndex) ?: 0f
-                val rotationAngle = currentState.rotationAngles.getOrNull(currentState.currentImageIndex) ?: 0f
                 
                 // Repository'yi kullanarak görüntüyü kaydet
                 val resultMessage = imageRepository.saveProcessedImage(
@@ -496,17 +485,17 @@ class ImageFilterViewModel @Inject constructor(
 
     fun createTempCameraUri(context: Context): Uri? {
         return try {
-            val timeStamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault()).format(java.util.Date())
-            val storageDir = java.io.File(context.externalCacheDir, "camera_photos")
+            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+            val storageDir = File(context.externalCacheDir, "camera_photos")
             if (!storageDir.exists()) storageDir.mkdirs()
             
-            val photoFile = java.io.File.createTempFile(
+            val photoFile = File.createTempFile(
                 "JPEG_${timeStamp}_",
                 ".jpg",
                 storageDir
             )
             
-            val uri = androidx.core.content.FileProvider.getUriForFile(
+            val uri = FileProvider.getUriForFile(
                 context,
                 "${context.packageName}.provider",
                 photoFile
@@ -553,5 +542,501 @@ class ImageFilterViewModel @Inject constructor(
     fun getShapesForCurrentImage(): List<ShapeItem> {
         val currentState = _uiState.value
         return currentState.shapeItems[currentState.currentImageIndex] ?: emptyList()
+    }
+
+    /**
+     * Prepare the image download by generating a filename and showing the confirmation dialog
+     */
+    fun prepareImageDownload() {
+        viewModelScope.launch {
+            val currentState = _uiState.value
+            
+            // Safety check - make sure we have valid data
+            if (currentState.processedImageUris.isEmpty() || 
+                currentState.currentImageIndex >= currentState.processedImageUris.size) {
+                _uiState.update { 
+                    it.copy(toastMessage = "No image available to download") 
+                }
+                return@launch
+            }
+            
+            try {
+                // Determine the appropriate source URI
+                val sourceUri = if (currentState.currentImageIndex < currentState.croppedImageUris.size && 
+                                    currentState.croppedImageUris[currentState.currentImageIndex] != null) {
+                    currentState.croppedImageUris[currentState.currentImageIndex]!!
+                } else {
+                    currentState.processedImageUris[currentState.currentImageIndex]
+                }
+                
+                // Use safe accessors for state values
+                val selectedFilter = currentState.selectedFilters.getOrNull(currentState.currentImageIndex) ?: "Original"
+                val brightness = currentState.brightnessValues.getOrNull(currentState.currentImageIndex) ?: 1f
+                val contrast = currentState.contrastValues.getOrNull(currentState.currentImageIndex) ?: 1f
+                val rotationAngle = currentState.rotationAngles.getOrNull(currentState.currentImageIndex) ?: 0f
+                
+                // Generate filename
+                val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                val randomId = Random.nextInt(1000, 9999)
+                val filename = "SmartDocsConvert_${timeStamp}_$randomId.jpg"
+                
+                // Update state with download information
+                _uiState.update {
+                    it.copy(
+                        pendingDownloadFilename = filename,
+                        userEnteredFilename = filename,
+                        pendingDownloadType = "image",
+                        pendingDownloadUri = sourceUri,
+                        pendingDownloadFilter = selectedFilter,
+                        pendingDownloadBrightness = brightness,
+                        pendingDownloadContrast = contrast,
+                        pendingDownloadRotation = rotationAngle,
+                        showDownloadOptions = false,
+                        showDownloadConfirmation = true
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        toastMessage = "Hazırlık sırasında hata oluştu: ${e.message}",
+                        showDownloadOptions = false
+                    )
+                }
+            }
+        }
+    }
+    
+    /**
+     * Prepare the PDF download by generating a filename and showing the confirmation dialog
+     */
+    fun preparePdfDownload() {
+        viewModelScope.launch {
+            val currentState = _uiState.value
+            
+            // Safety check - make sure we have valid data
+            if (currentState.processedImageUris.isEmpty() || 
+                currentState.currentImageIndex >= currentState.processedImageUris.size) {
+                _uiState.update { 
+                    it.copy(toastMessage = "No image available to save as PDF") 
+                }
+                return@launch
+            }
+            
+            try {
+                // Determine the appropriate source URI
+                val sourceUri = if (currentState.currentImageIndex < currentState.croppedImageUris.size && 
+                                    currentState.croppedImageUris[currentState.currentImageIndex] != null) {
+                    currentState.croppedImageUris[currentState.currentImageIndex]!!
+                } else {
+                    currentState.processedImageUris[currentState.currentImageIndex]
+                }
+                
+                // Generate filename
+                val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                val randomId = Random.nextInt(1000, 9999)
+                val filename = "SmartDocsConvert_${timeStamp}_$randomId.pdf"
+                
+                // Update state with download information
+                _uiState.update {
+                    it.copy(
+                        pendingDownloadFilename = filename,
+                        userEnteredFilename = filename,
+                        pendingDownloadType = "pdf",
+                        pendingDownloadUri = sourceUri,
+                        showDownloadOptions = false,
+                        showDownloadConfirmation = true
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        toastMessage = "Hazırlık sırasında hata oluştu: ${e.message}",
+                        showDownloadOptions = false
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Update the download filename
+     */
+    fun updateDownloadFilename(newFilename: String) {
+        _uiState.update {
+            it.copy(
+                userEnteredFilename = newFilename
+            )
+        }
+    }
+    
+    /**
+     * Update the download all images flag
+     */
+    fun updateDownloadAllImages(downloadAll: Boolean) {
+        _uiState.update {
+            it.copy(
+                downloadAllImages = downloadAll
+            )
+        }
+    }
+    
+    /**
+     * Confirm and start the download process
+     */
+    fun confirmDownload() {
+        val currentState = _uiState.value
+        
+        // Get the custom filename entered by the user
+        val customFilename = currentState.userEnteredFilename
+        
+        // Close the confirmation dialog
+        _uiState.update {
+            it.copy(
+                showDownloadConfirmation = false,
+                pendingDownloadFilename = customFilename // Use the user-edited filename
+            )
+        }
+        
+        when (currentState.pendingDownloadType) {
+            "image" -> {
+                // Check if there are multiple images - if so, always download all
+                if (currentState.processedImageUris.size > 1 || currentState.downloadAllImages) {
+                    // Download all images
+                    downloadAllImages(customFilename)
+                } else {
+                    // Download only the current image
+                    currentState.pendingDownloadUri?.let { uri ->
+                        saveAsImage(
+                            uri,
+                            currentState.pendingDownloadFilter ?: "Original",
+                            currentState.pendingDownloadBrightness,
+                            currentState.pendingDownloadContrast,
+                            currentState.pendingDownloadRotation
+                        )
+                    }
+                }
+            }
+            "pdf" -> {
+                currentState.pendingDownloadUri?.let { uri ->
+                    saveAsPdf(uri)
+                }
+            }
+        }
+    }
+    
+    /**
+     * Download all images
+     */
+    private fun downloadAllImages(baseFilename: String) {
+        viewModelScope.launch {
+            val currentState = _uiState.value
+            
+            if (currentState.processedImageUris.isEmpty()) {
+                _uiState.update { it.copy(toastMessage = "İndirilecek resim bulunamadı") }
+                return@launch
+            }
+            
+            // Show initial status message with count of images
+            val totalImages = currentState.processedImageUris.size
+            _uiState.update { 
+                it.copy(
+                    toastMessage = "$totalImages resim indiriliyor...",
+                    isDownloading = true,
+                    showDownloadAnimation = true
+                ) 
+            }
+            
+            // Get an instance of WorkManager
+            val workManager = WorkManager.getInstance(applicationContext)
+            
+            // Track download progress
+            val downloadRequests = mutableListOf<OneTimeWorkRequest>()
+            
+            // For each image in the list, create a download job
+            currentState.processedImageUris.forEachIndexed { index, imageUri ->
+                try {
+                    // Get the appropriate source URI (cropped if available)
+                    val sourceUri = if (index < currentState.croppedImageUris.size && 
+                                       currentState.croppedImageUris[index] != null) {
+                        currentState.croppedImageUris[index]!!
+                    } else {
+                        imageUri
+                    }
+                    
+                    // Get the filter settings for this specific image
+                    val selectedFilter = currentState.selectedFilters.getOrNull(index) ?: "Original"
+                    val brightness = currentState.brightnessValues.getOrNull(index) ?: 1f
+                    val contrast = currentState.contrastValues.getOrNull(index) ?: 1f
+                    val rotation = currentState.rotationAngles.getOrNull(index) ?: 0f
+                    
+                    // Generate unique filename with index
+                    val filename = if (currentState.processedImageUris.size > 1) {
+                        // If there are multiple images, add an index to the filename
+                        "${baseFilename.substringBeforeLast(".")}_${index + 1}.jpg"
+                    } else {
+                        // If there's only one image, use the original filename
+                        baseFilename
+                    }
+                    
+                    // Create the download request
+                    val downloadRequest = DownloadWorker.createImageDownloadWork(
+                        imageUri = sourceUri,
+                        filter = selectedFilter,
+                        brightness = brightness,
+                        contrast = contrast,
+                        rotation = rotation,
+                        filename = filename
+                    )
+                    
+                    downloadRequests.add(downloadRequest)
+                } catch (e: Exception) {
+                    android.util.Log.e("ImageFilterViewModel", "Error setting up download for image $index: ${e.message}")
+                }
+            }
+            
+            if (downloadRequests.isEmpty()) {
+                _uiState.update { 
+                    it.copy(
+                        toastMessage = "İndirme hazırlığında hata oluştu",
+                        isDownloading = false,
+                        showDownloadAnimation = false
+                    ) 
+                }
+                return@launch
+            }
+            
+            // Enqueue all download requests
+            downloadRequests.forEach { request ->
+                workManager.enqueue(request)
+            }
+            
+            // Allow downloads to run in the background
+            _uiState.update { 
+                it.copy(
+                    toastMessage = "$totalImages resim İndirilenler/SmartDocsConvert klasörüne indiriliyor. Her resim için bildirim alacaksınız.",
+                    isDownloading = false,
+                    showDownloadAnimation = false
+                ) 
+            }
+        }
+    }
+    
+    /**
+     * Cancel the download process
+     */
+    fun cancelDownload() {
+        _uiState.update {
+            it.copy(
+                showDownloadConfirmation = false,
+                pendingDownloadFilename = null,
+                pendingDownloadType = null,
+                pendingDownloadUri = null,
+                pendingDownloadFilter = null
+            )
+        }
+    }
+
+    /**
+     * Implementation of image download
+     */
+    private fun saveAsImage(
+        sourceUri: Uri,
+        selectedFilter: String,
+        brightness: Float,
+        contrast: Float,
+        rotationAngle: Float
+    ) {
+        viewModelScope.launch {
+            val currentState = _uiState.value
+            _uiState.update { it.copy(isDownloading = true) }
+            
+            try {
+                // Create work request using the helper method in DownloadWorker
+                val downloadRequest = DownloadWorker.createImageDownloadWork(
+                    imageUri = sourceUri,
+                    filter = selectedFilter,
+                    brightness = brightness,
+                    contrast = contrast,
+                    rotation = rotationAngle,
+                    filename = currentState.pendingDownloadFilename
+                )
+                
+                val workManager = WorkManager.getInstance(applicationContext)
+                
+                // Track the work progress
+                workManager.getWorkInfoByIdLiveData(downloadRequest.id)
+                    .observeForever(object : Observer<WorkInfo> {
+                        override fun onChanged(value: WorkInfo) {
+                            when (value.state) {
+                                WorkInfo.State.SUCCEEDED -> {
+                                    val resultMessage = value.outputData.getString(DownloadWorker.KEY_RESULT_MESSAGE)
+                                        ?: "Görüntü kaydedildi"
+                                    _uiState.update {
+                                        it.copy(
+                                            toastMessage = resultMessage,
+                                            isDownloading = false
+                                        )
+                                    }
+                                    // Remove the observer to prevent memory leaks
+                                    workManager.getWorkInfoByIdLiveData(downloadRequest.id)
+                                        .removeObserver(this)
+                                }
+                                WorkInfo.State.FAILED -> {
+                                    val errorMsg = value.outputData.getString(DownloadWorker.KEY_ERROR_MESSAGE)
+                                        ?: "İndirme işlemi başarısız oldu"
+                                    _uiState.update {
+                                        it.copy(
+                                            toastMessage = "Görüntü kaydedilirken hata oluştu: $errorMsg",
+                                            isDownloading = false
+                                        )
+                                    }
+                                    // Remove the observer to prevent memory leaks
+                                    workManager.getWorkInfoByIdLiveData(downloadRequest.id)
+                                        .removeObserver(this)
+                                }
+                                WorkInfo.State.CANCELLED -> {
+                                    _uiState.update {
+                                        it.copy(
+                                            toastMessage = "İndirme işlemi iptal edildi",
+                                            isDownloading = false
+                                        )
+                                    }
+                                    // Remove the observer to prevent memory leaks
+                                    workManager.getWorkInfoByIdLiveData(downloadRequest.id)
+                                        .removeObserver(this)
+                                }
+                                else -> {} // Other states like RUNNING, ENQUEUED, BLOCKED
+                            }
+                        }
+                    })
+                
+                // Update the UI with the custom filename before enqueueing the work
+                _uiState.update {
+                    it.copy(
+                        toastMessage = "${currentState.pendingDownloadFilename} indiriliyor...",
+                        showDownloadAnimation = true
+                    )
+                }
+                
+                // Enqueue the work request
+                workManager.enqueue(downloadRequest)
+                
+                // Reset the download animation after a delay
+                delay(2000)
+                _uiState.update {
+                    it.copy(showDownloadAnimation = false)
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        toastMessage = "Görüntü kaydedilirken hata oluştu: ${e.message}",
+                        isDownloading = false
+                    )
+                }
+            }
+        }
+    }
+    
+    /**
+     * Implementation of PDF download
+     */
+    private fun saveAsPdf(sourceUri: Uri) {
+        viewModelScope.launch {
+            val currentState = _uiState.value
+            _uiState.update { it.copy(isDownloading = true) }
+            
+            try {
+                // Create work request using the helper method in DownloadWorker
+                val downloadRequest = DownloadWorker.createPdfDownloadWork(
+                    imageUri = sourceUri,
+                    filename = currentState.pendingDownloadFilename
+                )
+                
+                val workManager = WorkManager.getInstance(applicationContext)
+                
+                // Track the work progress
+                workManager.getWorkInfoByIdLiveData(downloadRequest.id)
+                    .observeForever(object : Observer<WorkInfo> {
+                        override fun onChanged(value: WorkInfo) {
+                            when (value.state) {
+                                WorkInfo.State.SUCCEEDED -> {
+                                    val resultMessage = value.outputData.getString(DownloadWorker.KEY_RESULT_MESSAGE)
+                                        ?: "PDF olarak kaydedildi"
+                                    _uiState.update {
+                                        it.copy(
+                                            toastMessage = resultMessage,
+                                            isDownloading = false
+                                        )
+                                    }
+                                    // Remove the observer to prevent memory leaks
+                                    workManager.getWorkInfoByIdLiveData(downloadRequest.id)
+                                        .removeObserver(this)
+                                }
+                                WorkInfo.State.FAILED -> {
+                                    val errorMsg = value.outputData.getString(DownloadWorker.KEY_ERROR_MESSAGE)
+                                        ?: "İndirme işlemi başarısız oldu"
+                                    _uiState.update {
+                                        it.copy(
+                                            toastMessage = "PDF olarak kaydedilirken hata oluştu: $errorMsg",
+                                            isDownloading = false
+                                        )
+                                    }
+                                    // Remove the observer to prevent memory leaks
+                                    workManager.getWorkInfoByIdLiveData(downloadRequest.id)
+                                        .removeObserver(this)
+                                }
+                                WorkInfo.State.CANCELLED -> {
+                                    _uiState.update {
+                                        it.copy(
+                                            toastMessage = "İndirme işlemi iptal edildi",
+                                            isDownloading = false
+                                        )
+                                    }
+                                    // Remove the observer to prevent memory leaks
+                                    workManager.getWorkInfoByIdLiveData(downloadRequest.id)
+                                        .removeObserver(this)
+                                }
+                                else -> {} // Other states like RUNNING, ENQUEUED, BLOCKED
+                            }
+                        }
+                    })
+                
+                // Update the UI with the custom filename before enqueueing the work
+                _uiState.update { 
+                    it.copy(
+                        toastMessage = "${currentState.pendingDownloadFilename} olarak indiriliyor...",
+                        showDownloadAnimation = true
+                    )
+                }
+                
+                // Enqueue the work request
+                workManager.enqueue(downloadRequest)
+                
+                // Reset the download animation after a delay
+                delay(2000)
+                _uiState.update {
+                    it.copy(showDownloadAnimation = false)
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        toastMessage = "PDF olarak kaydedilirken hata oluştu: ${e.message}",
+                        isDownloading = false
+                    )
+                }
+            }
+        }
+    }
+
+    fun toggleDownloadOptions() {
+        _uiState.update {
+            it.copy(showDownloadOptions = !it.showDownloadOptions)
+        }
+    }
+    
+    fun hideDownloadOptions() {
+        _uiState.update {
+            it.copy(showDownloadOptions = false)
+        }
     }
 } 

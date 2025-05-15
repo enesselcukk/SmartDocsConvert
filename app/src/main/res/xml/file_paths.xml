@@ -1,15 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
-    <external-files-path
+    <!-- External storage paths -->
+    <external-path
         name="external_files"
         path="." />
-    <external-path
-        name="external"
-        path="." />
-    <files-path
-        name="files"
-        path="." />
+    
+    <!-- Cache directories -->
     <cache-path
         name="cache"
         path="." />
+    
+    <!-- External files paths -->
+    <external-files-path
+        name="external_files_path"
+        path="." />
+        
+    <!-- External pictures directory -->
+    <external-files-path
+        name="pictures"
+        path="Pictures" />
+    
+    <!-- External documents directory -->
+    <external-files-path
+        name="documents"
+        path="Documents" />
+    
+    <!-- App-specific directories -->
+    <external-files-path
+        name="smartdocs_images"
+        path="Pictures/SmartDocsConvert" />
 </paths> 

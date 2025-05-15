@@ -22,15 +22,27 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,8 +58,27 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.smartdocsconvert.R
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.unit.IntSize
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
 
 @Composable
 fun TopActionsBar(
@@ -490,6 +521,693 @@ fun ImageControlActions(
                 contentDescription = "Döndür",
                 modifier = Modifier.size(28.dp)
             )
+        }
+    }
+}
+
+@Composable
+fun DownloadOptionsDialog(
+    visible: Boolean,
+    onDismiss: () -> Unit,
+    onSaveAsImage: () -> Unit,
+    onSaveAsPdf: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    // Dialog durumunu takip eden state değişkenleri
+    val dialogOffset = remember { Animatable(if (visible) 0f else 300f) }
+    val dialogAlpha = remember { Animatable(if (visible) 1f else 0f) }
+    
+    // Dialog görünürlüğünü kontrol eden state
+    var isDialogVisible by remember { mutableStateOf(visible) }
+    
+    // visible değişimi ile dialog durumunu güncelleme
+    LaunchedEffect(visible) {
+        if (visible) {
+            // Dialog gösterilecekse, önce görünür yapıp sonra animasyonları başlat
+            isDialogVisible = true
+            dialogOffset.animateTo(
+                targetValue = 0f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                )
+            )
+            dialogAlpha.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(300)
+            )
+        } else {
+            // Dialog kapatılacaksa, hızlı animasyonla kapat
+            dialogOffset.animateTo(
+                targetValue = 300f,
+                animationSpec = tween(150) // Daha hızlı kapanma animasyonu
+            )
+            dialogAlpha.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(150) // Daha hızlı kapanma animasyonu
+            )
+            // Animasyon bitince dialogi tamamen kaldır
+            isDialogVisible = false
+        }
+    }
+    
+    // Dialog sadece görünür durumdaysa çizilsin
+    if (isDialogVisible) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(onClick = onDismiss)
+                .background(Color.Black.copy(alpha = 0.5f * dialogAlpha.value)),
+            contentAlignment = Alignment.Center
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth(0.85f)
+                    .padding(16.dp)
+                    .graphicsLayer {
+                        alpha = dialogAlpha.value
+                        scaleX = 0.8f + (0.2f * dialogAlpha.value)
+                        scaleY = 0.8f + (0.2f * dialogAlpha.value)
+                        translationY = dialogOffset.value // Aşağıdan yukarı kayma animasyonu
+                    }
+                    .clickable(enabled = false) { /* Prevent click propagation */ },
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color.White
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "İndirme Seçenekleri",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Color(0xFF333333),
+                        modifier = Modifier.padding(bottom = 24.dp)
+                    )
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        // Image download option
+                        DownloadOptionCard(
+                            icon = R.drawable.ic_image,
+                            text = "Görüntü",
+                            color = Color(0xFF4CAF50),
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                onSaveAsImage()
+                            }
+                        )
+                        
+                        // PDF download option
+                        DownloadOptionCard(
+                            icon = R.drawable.ic_pdf,
+                            text = "PDF",
+                            color = Color(0xFFE91E63),
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                onSaveAsPdf()
+                            }
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    TextButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                    ) {
+                        Text(
+                            text = "İptal",
+                            color = Color(0xFF757575),
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DownloadOptionCard(
+    icon: Int,
+    text: String,
+    color: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    
+    Card(
+        modifier = modifier
+            .aspectRatio(0.9f)
+            .graphicsLayer {
+                scaleX = if (isPressed) 0.95f else 1f
+                scaleY = if (isPressed) 0.95f else 1f
+            }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            ),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = color.copy(alpha = 0.1f)
+        ),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.3f)),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 0.dp,
+            pressedElevation = 4.dp
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                painter = painterResource(id = icon),
+                contentDescription = text,
+                tint = color,
+                modifier = Modifier.size(48.dp)
+            )
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            Text(
+                text = text,
+                color = Color(0xFF333333),
+                style = MaterialTheme.typography.titleMedium
+            )
+        }
+    }
+}
+
+@Composable
+fun DownloadAnimation(
+    visible: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val alphaAnim = remember { Animatable(0f) }
+    val scaleAnim = remember { Animatable(0.5f) }
+    val rotationAnim = remember { Animatable(0f) }
+    
+    // Animasyon durumunu takip eden state
+    var isAnimationVisible by remember { mutableStateOf(visible) }
+    
+    LaunchedEffect(visible) {
+        if (visible) {
+            isAnimationVisible = true
+            
+            // Reset all animations
+            alphaAnim.snapTo(0f)
+            scaleAnim.snapTo(0.5f)
+            rotationAnim.snapTo(0f)
+            
+            // Start animations in parallel
+            launch {
+                alphaAnim.animateTo(
+                    targetValue = 1f,
+                    animationSpec = tween(300)
+                )
+                delay(1200)
+                alphaAnim.animateTo(
+                    targetValue = 0f,
+                    animationSpec = tween(300)
+                )
+                
+                // Animasyon bittikten sonra görünürlüğü kapat
+                isAnimationVisible = false
+            }
+            
+            launch {
+                scaleAnim.animateTo(
+                    targetValue = 1f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessLow
+                    )
+                )
+            }
+            
+            launch {
+                rotationAnim.animateTo(
+                    targetValue = 720f,
+                    animationSpec = tween(
+                        durationMillis = 1000,
+                        easing = FastOutSlowInEasing
+                    )
+                )
+            }
+        } else {
+            // Eğer visible = false olursa, hızlıca kapat
+            alphaAnim.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(150)
+            )
+            isAnimationVisible = false
+        }
+    }
+    
+    if (isAnimationVisible) {
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f * alphaAnim.value))
+                .clickable(enabled = false) {},
+            contentAlignment = Alignment.Center
+        ) {
+            Card(
+                modifier = Modifier
+                    .size(150.dp)
+                    .graphicsLayer {
+                        alpha = alphaAnim.value
+                        scaleX = scaleAnim.value
+                        scaleY = scaleAnim.value
+                    },
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color.White
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(64.dp),
+                                color = Color(0xFF2196F3),
+                                strokeWidth = 4.dp
+                            )
+                            
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_download),
+                                contentDescription = "Download",
+                                tint = Color(0xFF2196F3),
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .align(Alignment.Center)
+                                    .graphicsLayer {
+                                        rotationZ = rotationAnim.value
+                                    }
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        Text(
+                            text = "İndiriliyor",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color(0xFF333333)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SaveButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .padding(16.dp)
+            .shadow(4.dp, CircleShape)
+            .background(Color.White, CircleShape)
+            .clip(CircleShape)
+            .clickable(onClick = onClick)
+            .padding(12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            painter = painterResource(id = R.drawable.ic_download),
+            contentDescription = "Save",
+            tint = Color(0xFF2196F3),
+            modifier = Modifier.size(24.dp)
+        )
+    }
+}
+
+@Composable
+fun AnimatedSaveButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    
+    val buttonSize = 56.dp
+    
+    Box(
+        modifier = modifier
+            .padding(16.dp)
+            .size(buttonSize)
+            .graphicsLayer {
+                scaleX = if (isPressed) 0.9f else 1f
+                scaleY = if (isPressed) 0.9f else 1f
+            }
+            .shadow(8.dp, CircleShape)
+            .background(
+                brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                    colors = listOf(
+                        Color(0xFF2196F3),
+                        Color(0xFF03A9F4)
+                    )
+                ),
+                shape = CircleShape
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            painter = painterResource(id = R.drawable.ic_download),
+            contentDescription = "Save",
+            tint = Color.White,
+            modifier = Modifier.size(24.dp)
+        )
+    }
+}
+
+@Composable
+fun DownloadConfirmationDialog(
+    visible: Boolean,
+    filename: String,
+    downloadType: String?,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit,
+    onFilenameChanged: (String) -> Unit,
+    onDownloadAllChanged: ((Boolean) -> Unit)? = null,
+    downloadAll: Boolean = false,
+    modifier: Modifier = Modifier
+) {
+    // Dialog animation states
+    val dialogOffset = remember { Animatable(if (visible) 0f else 300f) }
+    val dialogAlpha = remember { Animatable(if (visible) 1f else 0f) }
+    
+    // Track dialog visibility
+    var isDialogVisible by remember { mutableStateOf(visible) }
+    
+    // Update dialog state when visibility changes
+    LaunchedEffect(visible) {
+        isDialogVisible = visible
+        if (visible) {
+            dialogOffset.animateTo(0f)
+            dialogAlpha.animateTo(1f)
+        } else {
+            dialogAlpha.animateTo(0f)
+            dialogOffset.animateTo(300f)
+        }
+    }
+    
+    if (isDialogVisible) {
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .graphicsLayer { 
+                    alpha = dialogAlpha.value
+                }
+                .background(Color.Black.copy(alpha = 0.5f))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) { onCancel() }
+        ) {
+            Card(
+                modifier = Modifier
+                    .padding(32.dp)
+                    .align(Alignment.Center)
+                    .fillMaxWidth(0.95f)
+                    .graphicsLayer {
+                        translationY = dialogOffset.value
+                    }
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {},
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color.White
+                ),
+                elevation = CardDefaults.cardElevation(
+                    defaultElevation = 16.dp
+                ),
+                border = BorderStroke(1.dp, Color(0xFFE0E0E0))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Title text based on download type
+                    val titleText = if (downloadType == "pdf") "PDF İndirme" else "Görüntü İndirme"
+                    val iconRes = if (downloadType == "pdf") R.drawable.ic_pdf else R.drawable.ic_image
+                    val iconColor = if (downloadType == "pdf") Color(0xFFE91E63) else Color(0xFF4CAF50)
+                    
+                    // Title with icon
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(bottom = 24.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(id = iconRes),
+                            contentDescription = null,
+                            tint = iconColor,
+                            modifier = Modifier.size(32.dp)
+                        )
+                        
+                        Spacer(modifier = Modifier.width(12.dp))
+                        
+                        Text(
+                            text = titleText,
+                            style = MaterialTheme.typography.titleLarge,
+                            color = Color(0xFF333333)
+                        )
+                    }
+                    
+                    // File information card with editable filename
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFFEDEDED)
+                        ),
+                        border = BorderStroke(1.dp, Color(0xFFDDDDDD))
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                        ) {
+                            Text(
+                                text = "Dosya adı:",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                color = Color(0xFF505050)
+                            )
+                            
+                            // Calculate file extension to keep
+                            val fileExtension = remember(filename) {
+                                filename.substringAfterLast(".", "")
+                            }
+                            
+                            // Extract base filename without extension for editing
+                            val baseFilename = remember(filename) {
+                                filename.substringBeforeLast(".", "")
+                            }
+                            
+                            // Add TextField for editing the filename
+                            var textFieldValue by remember(baseFilename) { mutableStateOf(baseFilename) }
+                            val focusRequester = remember { FocusRequester() }
+                            
+                            // Focus the text field when dialog appears
+                            LaunchedEffect(Unit) {
+                                delay(300) // Short delay to ensure dialog is visible
+                                focusRequester.requestFocus()
+                            }
+                            
+                            OutlinedTextField(
+                                value = textFieldValue,
+                                onValueChange = { newValue ->
+                                    // Update local state first for immediate feedback
+                                    textFieldValue = newValue
+                                    
+                                    // Then update the parent state with sanitized value and extension
+                                    val sanitizedValue = newValue.replace("[\\\\/:*?\"<>|]".toRegex(), "_")
+                                    if (sanitizedValue.isNotEmpty()) {
+                                        onFilenameChanged("$sanitizedValue.$fileExtension")
+                                    } else {
+                                        // If empty, use a default name to prevent errors
+                                        onFilenameChanged("document.$fileExtension")
+                                    }
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp, bottom = 4.dp)
+                                    .focusRequester(focusRequester),
+                                textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                    color = Color.Black,
+                                    fontWeight = FontWeight.Medium
+                                ),
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Text,
+                                    imeAction = ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(
+                                    onDone = { onConfirm() }
+                                ),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = Color.White,
+                                    unfocusedContainerColor = Color.White,
+                                    focusedBorderColor = iconColor,
+                                    unfocusedBorderColor = Color(0xFF9E9E9E),
+                                    cursorColor = iconColor,
+                                    focusedTextColor = Color.Black,
+                                    unfocusedTextColor = Color.Black,
+                                ),
+                                leadingIcon = if (textFieldValue.isNotEmpty()) {
+                                    {
+                                        IconButton(
+                                            onClick = {
+                                                textFieldValue = ""
+                                                onFilenameChanged("document.$fileExtension")
+                                            }
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Clear,
+                                                contentDescription = "Clear text",
+                                                tint = Color.Gray
+                                            )
+                                        }
+                                    }
+                                } else null,
+                                trailingIcon = {
+                                    Box(
+                                        modifier = Modifier
+                                            .background(
+                                                color = Color(0xFFEEEEEE), 
+                                                shape = RoundedCornerShape(8.dp)
+                                            )
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = ".$fileExtension",
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                fontWeight = FontWeight.Medium
+                                            ),
+                                            color = Color(0xFF555555)
+                                        )
+                                    }
+                                }
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(24.dp))
+                    
+                    // Add "Download All Images" checkbox if downloadType is image and we have multiple images
+                    if (downloadType == "image" && onDownloadAllChanged != null) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 16.dp)
+                                .clickable { onDownloadAllChanged(!downloadAll) },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = downloadAll,
+                                onCheckedChange = { onDownloadAllChanged(it) },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = iconColor,
+                                    uncheckedColor = Color(0xFF757575)
+                                )
+                            )
+                            
+                            Text(
+                                text = "Tüm resimleri indir",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color(0xFF333333),
+                                modifier = Modifier.padding(start = 8.dp)
+                            )
+                        }
+                    }
+                    
+                    // Action buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        // Cancel button
+                        OutlinedButton(
+                            onClick = onCancel,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color(0xFFBDBDBD)),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = Color(0xFF505050)
+                            )
+                        ) {
+                            Text(
+                                "İptal",
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        
+                        // Confirm button
+                        Button(
+                            onClick = onConfirm,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = iconColor
+                            ),
+                            elevation = ButtonDefaults.buttonElevation(
+                                defaultElevation = 4.dp
+                            )
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_download),
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "İndir",
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
