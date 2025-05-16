@@ -63,7 +63,7 @@ fun MainImageEditor(
     val intensity = uiState.filterIntensityValues.getOrNull(uiState.currentImageIndex) ?: 0f
     
     // Direkt olarak matris değerlerini hesaplayalım
-    val colorMatrix = createColorMatrix(brightness, contrast, filter, intensity)
+    val colorMatrix = createColorMatrix(brightness, contrast, filter)
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Images stack
@@ -520,7 +520,7 @@ fun FilterPreviewImage(
         if (currentImageUri != null) {
             // Apply filter to the thumbnail image
             val colorMatrix = remember(filter) {
-                createColorMatrix(1.0f, 1.0f, filter, 0.7f)
+                createColorMatrix(1.0f, 1.0f, filter)
             }
             
             // Track loading state
@@ -711,7 +711,6 @@ fun createColorMatrix(
     brightness: Float,
     contrast: Float,
     filter: String,
-    intensity: Float
 ): ColorMatrix {
     // Contrast işlemi için scale ve translate değerlerini hesaplayalım
     val scale = contrast
@@ -807,7 +806,7 @@ suspend fun animateImageTransition(
 /**
  * Function to auto enhance image
  */
-suspend fun autoEnhanceImage(
+fun autoEnhanceImage(
     context: Context,
     uiState: ImageFilterState,
     viewModel: ImageFilterViewModel

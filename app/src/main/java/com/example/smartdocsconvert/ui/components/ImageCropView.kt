@@ -1,10 +1,7 @@
 package com.example.smartdocsconvert.ui.components
 
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
+
 import android.net.Uri
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,8 +35,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import kotlin.math.max
-import kotlin.math.min
 
 @Composable
 fun ImageCropView(

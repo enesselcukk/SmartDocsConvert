@@ -51,20 +51,13 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.smartdocsconvert.R
-import com.example.smartdocsconvert.ui.components.EmptyFileState
-import com.example.smartdocsconvert.ui.components.FileItem
-import com.example.smartdocsconvert.ui.components.FileTypeChip
 import com.example.smartdocsconvert.ui.components.LoadingAnimation
 import com.example.smartdocsconvert.ui.components.NoPermissionState
 import com.example.smartdocsconvert.ui.viewmodel.FileConverterViewModel
 import com.example.smartdocsconvert.util.FileUtils
-import com.example.smartdocsconvert.util.FileUtils.formatFileSize
 import java.io.File
 import kotlinx.coroutines.launch
-import kotlin.math.cos
-import kotlin.math.sin
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ConvertFileScreen(
     onBackClick: () -> Unit,

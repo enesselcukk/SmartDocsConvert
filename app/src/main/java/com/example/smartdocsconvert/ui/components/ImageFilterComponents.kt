@@ -530,8 +530,7 @@ fun DownloadOptionsDialog(
     visible: Boolean,
     onDismiss: () -> Unit,
     onSaveAsImage: () -> Unit,
-    onSaveAsPdf: () -> Unit,
-    modifier: Modifier = Modifier
+    onSaveAsPdf: () -> Unit
 ) {
     // Dialog durumunu takip eden state değişkenleri
     val dialogOffset = remember { Animatable(if (visible) 0f else 300f) }
@@ -841,30 +840,6 @@ fun DownloadAnimation(
                 }
             }
         }
-    }
-}
-
-@Composable
-fun SaveButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .padding(16.dp)
-            .shadow(4.dp, CircleShape)
-            .background(Color.White, CircleShape)
-            .clip(CircleShape)
-            .clickable(onClick = onClick)
-            .padding(12.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            painter = painterResource(id = R.drawable.ic_download),
-            contentDescription = "Save",
-            tint = Color(0xFF2196F3),
-            modifier = Modifier.size(24.dp)
-        )
     }
 }
 
