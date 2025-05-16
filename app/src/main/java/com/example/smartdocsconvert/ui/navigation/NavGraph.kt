@@ -72,7 +72,11 @@ fun NavGraph(
             } ?: emptyList()
             
             FilterScreen(
-                navigateUp = {navController.navigateUp()},
+                navigateUp = {navController.navigate(Screen.SelectPermissions.route){
+                    popUpTo(Screen.Filter.route){
+                        inclusive = true
+                    }
+                } },
                 imageUris = selectedImageUris
             )
         }

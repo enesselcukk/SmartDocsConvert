@@ -1134,8 +1134,8 @@ fun DownloadConfirmationDialog(
                     
                     Spacer(modifier = Modifier.height(24.dp))
                     
-                    // Add "Download All Images" checkbox if downloadType is image and we have multiple images
-                    if (downloadType == "image" && onDownloadAllChanged != null) {
+                    // Add "Download All Images" checkbox if onDownloadAllChanged is provided (available for both image and PDF)
+                    if (onDownloadAllChanged != null) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1152,8 +1152,15 @@ fun DownloadConfirmationDialog(
                                 )
                             )
                             
+                            // Different text based on downloadType
+                            val labelText = if (downloadType == "pdf") {
+                                "Tüm resimleri PDF olarak birleştir"
+                            } else {
+                                "Tüm resimleri indir"
+                            }
+                            
                             Text(
-                                text = "Tüm resimleri indir",
+                                text = labelText,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = Color(0xFF333333),
                                 modifier = Modifier.padding(start = 8.dp)

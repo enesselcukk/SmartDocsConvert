@@ -2,7 +2,6 @@ package com.example.smartdocsconvert.ui.components
 
 import android.content.Context
 import android.graphics.BitmapFactory
-import android.net.Uri
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
@@ -24,7 +23,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
@@ -35,7 +33,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.IntSize
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImagePainter
@@ -43,10 +40,9 @@ import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example.smartdocsconvert.R
 import com.example.smartdocsconvert.ui.theme.FilterColors
-import com.example.smartdocsconvert.ui.viewmodel.ImageFilterState
+import com.example.smartdocsconvert.data.model.ImageFilterState
 import com.example.smartdocsconvert.ui.viewmodel.ImageFilterViewModel
 import kotlinx.coroutines.launch
-import kotlin.math.abs
 
 /**
  * Main editor composable with image display and controls

@@ -1,8 +1,7 @@
-package com.example.smartdocsconvert.ui.viewmodel
+package com.example.smartdocsconvert.data.model
 
 import android.net.Uri
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.IntSize
 import com.example.smartdocsconvert.ui.components.ShapeItem
 
@@ -61,5 +60,7 @@ data class ImageFilterState(
     val shapeItems: Map<Int, List<ShapeItem>> = emptyMap(),
     
     // Messaging
-    val toastMessage: String? = null
+    val toastMessage: String? = null,
+
+    val navigateBack: Boolean = false  // New flag to trigger navigation back
 ) 

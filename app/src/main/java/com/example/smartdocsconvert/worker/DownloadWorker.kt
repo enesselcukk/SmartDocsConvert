@@ -35,6 +35,7 @@ class DownloadWorker(
     companion object {
         const val KEY_DOWNLOAD_TYPE = "download_type"
         const val KEY_IMAGE_URI = "image_uri"
+        const val KEY_IMAGE_URIS = "image_uris"
         const val KEY_FILTER = "filter"
         const val KEY_BRIGHTNESS = "brightness"
         const val KEY_CONTRAST = "contrast"
@@ -43,6 +44,7 @@ class DownloadWorker(
         
         const val DOWNLOAD_TYPE_IMAGE = "image"
         const val DOWNLOAD_TYPE_PDF = "pdf"
+        const val DOWNLOAD_TYPE_MULTI_PDF = "multi_pdf"
         
         // Result keys
         const val KEY_RESULT_MESSAGE = "result_message"
@@ -124,15 +126,48 @@ class DownloadWorker(
                 )
                 .build()
         }
+        
+        /**
+         * Helper method to create a WorkRequest for multi-page PDF downloads
+         */
+        fun createMultiPagePdfDownloadWork(
+            imageUris: List<Uri>,
+            filename: String? = null
+        ): OneTimeWorkRequest {
+            // Convert Uri list to string list
+            val imageUriStrings = imageUris.map { it.toString() }
+            
+            // Create workData with or without filename
+            val workData = if (filename != null) {
+                workDataOf(
+                    KEY_DOWNLOAD_TYPE to DOWNLOAD_TYPE_MULTI_PDF,
+                    KEY_IMAGE_URIS to imageUriStrings.toTypedArray(),
+                    KEY_FILENAME to filename
+                )
+            } else {
+                workDataOf(
+                    KEY_DOWNLOAD_TYPE to DOWNLOAD_TYPE_MULTI_PDF,
+                    KEY_IMAGE_URIS to imageUriStrings.toTypedArray()
+                )
+            }
+            
+            return OneTimeWorkRequestBuilder<DownloadWorker>()
+                .setInputData(workData)
+                .addTag("multi_pdf_download")
+                .setBackoffCriteria(
+                    BackoffPolicy.LINEAR,
+                    30000L, // 30 seconds minimum backoff time
+                    TimeUnit.MILLISECONDS
+                )
+                .build()
+        }
     }
     
     override suspend fun doWork(): Result {
         try {
             val downloadType = inputData.getString(KEY_DOWNLOAD_TYPE) ?: return Result.failure()
-            val imageUriString = inputData.getString(KEY_IMAGE_URI) ?: return Result.failure()
-            val imageUri = Uri.parse(imageUriString)
             
-            android.util.Log.d("DownloadWorker", "Starting download work: type=$downloadType, uri=$imageUriString")
+            android.util.Log.d("DownloadWorker", "Starting download work: type=$downloadType")
             
             val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
             val randomId = Random.nextInt(1000, 9999)
@@ -143,6 +178,10 @@ class DownloadWorker(
             
             return when (downloadType) {
                 DOWNLOAD_TYPE_IMAGE -> {
+                    // Get image URI
+                    val imageUriString = inputData.getString(KEY_IMAGE_URI) ?: return Result.failure()
+                    val imageUri = Uri.parse(imageUriString)
+                    
                     val selectedFilter = inputData.getString(KEY_FILTER) ?: "Original"
                     val brightness = inputData.getFloat(KEY_BRIGHTNESS, 1f)
                     val contrast = inputData.getFloat(KEY_CONTRAST, 1f)
@@ -170,6 +209,10 @@ class DownloadWorker(
                 
                 DOWNLOAD_TYPE_PDF -> {
                     try {
+                        // Get image URI
+                        val imageUriString = inputData.getString(KEY_IMAGE_URI) ?: return Result.failure()
+                        val imageUri = Uri.parse(imageUriString)
+                        
                         android.util.Log.d("DownloadWorker", "Creating PDF from image: $imageUri")
                         
                         // Verify the image URI is accessible
@@ -232,6 +275,97 @@ class DownloadWorker(
                         }
                     } catch (e: Exception) {
                         android.util.Log.e("DownloadWorker", "PDF creation failed: ${e.message}", e)
+                        return Result.failure(Data.Builder().putString(KEY_ERROR_MESSAGE, e.message).build())
+                    }
+                }
+                
+                DOWNLOAD_TYPE_MULTI_PDF -> {
+                    try {
+                        // Get image URIs from the input data
+                        val imageUriStrings = inputData.getStringArray(KEY_IMAGE_URIS) ?: return Result.failure(
+                            Data.Builder().putString(KEY_ERROR_MESSAGE, "No images provided for PDF").build()
+                        )
+                        
+                        if (imageUriStrings.isEmpty()) {
+                            return Result.failure(
+                                Data.Builder().putString(KEY_ERROR_MESSAGE, "Empty image list for PDF").build()
+                            )
+                        }
+                        
+                        android.util.Log.d("DownloadWorker", "Creating multi-page PDF from ${imageUriStrings.size} images")
+                        
+                        // Convert string array to Uri list
+                        val imageUris = imageUriStrings.map { Uri.parse(it) }
+                        
+                        // Verify all URIs are accessible
+                        val inaccessibleUris = imageUris.filter { uri ->
+                            val isAccessible = context.contentResolver.openInputStream(uri)?.use { 
+                                it.available() > 0 
+                            } ?: false
+                            !isAccessible
+                        }
+                        
+                        if (inaccessibleUris.isNotEmpty()) {
+                            android.util.Log.e("DownloadWorker", "${inaccessibleUris.size} image URIs are not accessible")
+                            return Result.failure(
+                                Data.Builder().putString(KEY_ERROR_MESSAGE, "${inaccessibleUris.size} images are not accessible").build()
+                            )
+                        }
+                        
+                        // Check if storage is available
+                        val storageAvailable = Environment.getExternalStorageState() == Environment.MEDIA_MOUNTED
+                        if (!storageAvailable) {
+                            android.util.Log.e("DownloadWorker", "External storage is not available")
+                            return Result.failure(
+                                Data.Builder().putString(KEY_ERROR_MESSAGE, "Cannot access storage").build()
+                            )
+                        }
+                        
+                        // Convert images to multi-page PDF
+                        val fileName = customFilename ?: "SmartDocsConvert_${timeStamp}_$randomId.pdf"
+                        android.util.Log.d("DownloadWorker", "Creating multi-page PDF with filename: $fileName")
+                        
+                        try {
+                            // Use the PdfUtil's createPdfFromImages method
+                            val pdfFile = PdfUtil.createPdfFromImages(context, imageUris, fileName)
+                            
+                            // Verify the PDF was created properly
+                            if (!pdfFile.exists() || pdfFile.length() == 0L) {
+                                android.util.Log.e("DownloadWorker", "Multi-page PDF file was not created or is empty: ${pdfFile.absolutePath}")
+                                return Result.failure(
+                                    Data.Builder().putString(KEY_ERROR_MESSAGE, "PDF file could not be created").build()
+                                )
+                            }
+                            
+                            // Show notification
+                            NotificationUtil.createNotificationChannel(context)
+                            NotificationUtil.showDownloadNotification(context, pdfFile)
+                            
+                            android.util.Log.d("DownloadWorker", "Multi-page PDF created successfully: ${pdfFile.absolutePath}")
+                            
+                            return Result.success(
+                                Data.Builder()
+                                    .putString(KEY_RESULT_MESSAGE, "Çoklu sayfalı PDF kaydedildi: Downloads/SmartDocsConvert")
+                                    .putString(KEY_OUTPUT_FILE_PATH, pdfFile.absolutePath)
+                                    .build()
+                            )
+                        } catch (e: Exception) {
+                            android.util.Log.e("DownloadWorker", "Multi-page PDF creation error: ${e.message}", e)
+                            
+                            // Provide more specific error message based on the exception
+                            val errorMsg = when {
+                                e.message?.contains("permission") == true -> "Permission error: Check storage permissions"
+                                e.message?.contains("space") == true -> "Insufficient storage space"
+                                e.message?.contains("decode") == true -> "Images couldn't be processed"
+                                e.message?.contains("bitmap") == true -> "Images couldn't be converted"
+                                e.message?.contains("PDF") == true -> "PDF creation error"
+                                else -> "Error creating PDF: ${e.message}"
+                            }
+                            
+                            return Result.failure(Data.Builder().putString(KEY_ERROR_MESSAGE, errorMsg).build())
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("DownloadWorker", "Multi-page PDF creation failed: ${e.message}", e)
                         return Result.failure(Data.Builder().putString(KEY_ERROR_MESSAGE, e.message).build())
                     }
                 }

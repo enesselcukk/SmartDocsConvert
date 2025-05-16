@@ -1,56 +1,23 @@
 package com.example.smartdocsconvert.ui.screens.image
 
 import android.annotation.SuppressLint
-import android.graphics.Bitmap
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
-import coil.compose.rememberAsyncImagePainter
-import coil.request.ImageRequest
 import com.example.smartdocsconvert.R
-import androidx.compose.foundation.gestures.*
 import kotlinx.coroutines.launch
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
-import com.example.smartdocsconvert.ui.components.CropPointsOverlay
-import androidx.compose.ui.unit.IntSize
-import com.example.smartdocsconvert.ui.components.ShapesOverlay
-import android.os.Environment
 import android.widget.Toast
-import android.graphics.BitmapFactory
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
-import java.io.File
-import java.io.FileOutputStream
 import android.net.Uri
-import androidx.compose.ui.graphics.ColorMatrix
-import androidx.core.content.FileProvider
-import coil.compose.AsyncImagePainter
-import kotlin.math.abs
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.smartdocsconvert.ui.components.AnimatedFeatureControls
@@ -66,6 +33,7 @@ import com.example.smartdocsconvert.ui.components.DownloadOptionsDialog
 import com.example.smartdocsconvert.ui.components.DownloadAnimation
 import com.example.smartdocsconvert.ui.components.AnimatedSaveButton
 import com.example.smartdocsconvert.ui.components.DownloadConfirmationDialog
+import kotlinx.coroutines.delay
 
 @SuppressLint("RememberReturnType")
 @Composable
@@ -78,16 +46,21 @@ fun FilterScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // Initialize ViewModel with image URIs
     LaunchedEffect(imageUris) {
         viewModel.initializeWithImages(imageUris)
     }
 
-    // Animation states
+    LaunchedEffect(uiState.navigateBack) {
+        if (uiState.navigateBack) {
+            delay(1000)
+            viewModel.resetNavigateBack()
+            navigateUp()
+        }
+    }
+
     val bottomBarHeight = remember { Animatable(0f) }
     val contentAlpha = remember { Animatable(0f) }
 
-    // Initial animations
     LaunchedEffect(Unit) {
         launch {
             bottomBarHeight.animateTo(
@@ -106,14 +79,14 @@ fun FilterScreen(
         }
     }
 
-    // Image transition states
+
     val transformableState = rememberImageTransformableState(
         onTransform = { scale, offsetX, offsetY ->
             viewModel.updateTransformState(scale, offsetX, offsetY)
         }
     )
 
-    // Handle toast messages
+
     LaunchedEffect(uiState.toastMessage) {
         uiState.toastMessage?.let {
             Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
@@ -126,7 +99,6 @@ fun FilterScreen(
             FilterTopAppBar(
                 onBackClick = {
                     scope.launch {
-                        // Exit animation
                         contentAlpha.animateTo(0f, tween(300))
                         bottomBarHeight.animateTo(0f, tween(300))
                         navigateUp()
@@ -148,22 +120,17 @@ fun FilterScreen(
                         alpha = contentAlpha.value
                     }
             ) {
-                // Main image area
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth(),
                     contentAlignment = Alignment.Center
                 ) {
-                    // Show appropriate editor view based on active feature
                     when (uiState.activeFeature) {
                         "crop" -> {
-                            // Make sure we have valid image URIs before displaying the crop editor
                             if (uiState.processedImageUris.isNotEmpty() && uiState.currentImageIndex < uiState.processedImageUris.size) {
-                                // Set default crop rect if needed
                                 val defaultCropRect = Rect(0.1f, 0.1f, 0.9f, 0.9f)
                                 val currentCropRect = if (uiState.cropRect == Rect(0f, 0f, 1f, 1f)) {
-                                    // If using the full default rect, use a more reasonable one instead
                                     defaultCropRect
                                 } else {
                                     uiState.cropRect
@@ -178,7 +145,6 @@ fun FilterScreen(
                                     uiState = uiState
                                 )
                             } else {
-                                // Handle error case - show a message or fallback UI
                                 Text(
                                     text = "No image available to crop",
                                     color = Color.White,
@@ -187,7 +153,6 @@ fun FilterScreen(
                             }
                         }
                         else -> {
-                            // Make sure we have valid image URIs before displaying the main editor
                             if (uiState.processedImageUris.isNotEmpty()) {
                                 MainImageEditor(
                                     uiState = uiState,
@@ -205,7 +170,6 @@ fun FilterScreen(
                                     viewModel = viewModel
                                 )
                             } else {
-                                // Handle error case - show a message or fallback UI
                                 Text(
                                     text = "No images available to edit",
                                     color = Color.White,
@@ -215,16 +179,14 @@ fun FilterScreen(
                         }
                     }
 
-                    // Loading indicator
                     if (uiState.isLoading || uiState.isImageLoading) {
                         LoadingOverlay()
                     }
-                    
-                    // Download animation
+
                     DownloadAnimation(visible = uiState.showDownloadAnimation)
                 }
 
-                // Feature-specific controls
+
                 if (uiState.processedImageUris.isNotEmpty() && uiState.currentImageIndex < uiState.processedImageUris.size) {
                     AnimatedFeatureControls(
                         uiState = uiState,
@@ -234,7 +196,6 @@ fun FilterScreen(
                     )
                 }
 
-                // Bottom navigation with animation
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -250,7 +211,6 @@ fun FilterScreen(
                         FilterBottomNavigation(
                             activeFeature = uiState.activeFeature,
                             onFeatureClick = { feature ->
-                                // Only process feature clicks if we have valid images
                                 if (uiState.processedImageUris.isNotEmpty()) {
                                     when (feature) {
                                         "auto" -> {
@@ -270,13 +230,11 @@ fun FilterScreen(
                                         )
                                     }
                                 } else {
-                                    // Show a toast if no images available
                                     Toast.makeText(context, "No images available to edit", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         )
-                        
-                        // Only show the download button if we have images and no feature is currently active
+
                         if (uiState.processedImageUris.isNotEmpty() && uiState.activeFeature == null) {
                             AnimatedSaveButton(
                                 onClick = { viewModel.toggleDownloadOptions() },
@@ -286,16 +244,14 @@ fun FilterScreen(
                     }
                 }
             }
-            
-            // Download options dialog
+
             DownloadOptionsDialog(
                 visible = uiState.showDownloadOptions,
                 onDismiss = { viewModel.hideDownloadOptions() },
                 onSaveAsImage = { viewModel.prepareImageDownload() },
                 onSaveAsPdf = { viewModel.preparePdfDownload() }
             )
-            
-            // Download confirmation dialog
+
             DownloadConfirmationDialog(
                 visible = uiState.showDownloadConfirmation,
                 filename = uiState.pendingDownloadFilename ?: "",

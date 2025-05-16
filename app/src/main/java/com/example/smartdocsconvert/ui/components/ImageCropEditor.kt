@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
-import com.example.smartdocsconvert.ui.viewmodel.ImageFilterState
+import com.example.smartdocsconvert.data.model.ImageFilterState
 
 /**
  * Image crop editor component
