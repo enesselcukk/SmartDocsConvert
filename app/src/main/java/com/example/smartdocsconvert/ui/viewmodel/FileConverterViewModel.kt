@@ -29,7 +29,6 @@ import javax.inject.Inject
 @HiltViewModel
 class FileConverterViewModel @Inject constructor() : ViewModel() {
 
-    // UI durumunu tutan veri sınıfı
     data class FileConverterUiState(
         val files: List<File> = emptyList(),
         val selectedFiles: Set<File> = emptySet(),
@@ -43,17 +42,13 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
     private val _uiState = MutableStateFlow(FileConverterUiState())
     val uiState: StateFlow<FileConverterUiState> = _uiState.asStateFlow()
 
-    // Desteklenen dosya türleri
-    val supportedExtensions = listOf("pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "txt")
+    private val supportedExtensions = listOf("pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "txt")
     
-    // Dosya yükleme işi için referans
     private var fileLoadingJob: Job? = null
     
-    // Cache mekanizması
     private val fileCache = mutableMapOf<String, List<File>>()
     private val allFilesCache = mutableListOf<File>()
 
-    // İzinleri kontrol et
     fun checkPermissions(context: Context) {
         val hasPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ContextCompat.checkSelfPermission(
@@ -78,7 +73,6 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
         _uiState.update { it.copy(hasPermission = hasPermission) }
     }
 
-    // İzin talebi sonuçlarını işle
     fun handlePermissionResult(allGranted: Boolean) {
         val currentState = _uiState.value
 
@@ -91,12 +85,10 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    // İzin diyaloğunu kapat
     fun dismissPermissionDialog() {
         _uiState.update { it.copy(showPermissionDialog = false) }
     }
 
-    // Dosya seç/seçimi kaldır
     fun toggleFileSelection(file: File) {
         val currentSelected = _uiState.value.selectedFiles
         val newSelected = if (currentSelected.contains(file)) {
@@ -108,29 +100,22 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
         _uiState.update { it.copy(selectedFiles = newSelected) }
     }
 
-    // Dosyaları yenile
     fun refreshFiles(context: Context) {
-        // Önceki yükleme işi varsa iptal et
         fileLoadingJob?.cancel()
         
-        // Eğer cache'de dosyalar varsa hemen göster
         if (allFilesCache.isNotEmpty()) {
             _uiState.update { it.copy(files = allFilesCache.toList(), isLoading = false) }
         }
         
-        // Yeni yükleme işi başlat
         fileLoadingJob = viewModelScope.launch {
             try {
                 _uiState.update { it.copy(isLoading = true, lastError = null) }
                 
-                // Tüm desteklenen dosya türlerini yükle
                 val allFiles = getAllSupportedFiles(context)
                 
-                // Cache güncelle
                 allFilesCache.clear()
                 allFilesCache.addAll(allFiles)
                 
-                // UI güncelle
                 _uiState.update { it.copy(files = allFiles, isLoading = false) }
                 
             } catch (e: Exception) {
@@ -140,34 +125,25 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    // Cache'i temizle ve dosyaları yeniden yükle 
     fun forceRefreshFiles(context: Context) {
-        // Cache'i temizle
         allFilesCache.clear()
         fileCache.clear()
         
-        // Log ile bildir
         android.util.Log.d("FileSearch", "Cache temizlendi, dosyalar yeniden yükleniyor...")
         
-        // Yeni dosyaları yükle
         refreshFiles(context)
     }
 
 
-    // Tüm desteklenen dosya türlerini yükle
     private suspend fun getAllSupportedFiles(context: Context): List<File> = withContext(Dispatchers.IO) {
         val allFiles = mutableListOf<File>()
         val uniquePaths = HashSet<String>()
         
-        // Logla başlangıç
         android.util.Log.d("FileSearch", "Dosya arama başlatılıyor...")
         
-        // Tüm desteklenen uzantılar için dosyaları yükle
         for (extension in supportedExtensions) {
-            // Önce cache kontrol et
             val cachedFiles = fileCache[extension]
             if (cachedFiles != null) {
-                // Sadece benzersiz dosyaları ekle
                 cachedFiles.forEach { file ->
                     if (uniquePaths.add(file.absolutePath)) {
                         allFiles.add(file)
@@ -175,12 +151,10 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
                 }
                 android.util.Log.d("FileSearch", "$extension: cache'den ${cachedFiles.size} dosya alındı")
             } else {
-                // Cache'de yoksa yükle 
                 try {
                     val files = getFilesByExtension(context, extension)
                     fileCache[extension] = files
                     
-                    // Sadece benzersiz dosyaları ekle
                     files.forEach { file ->
                         if (uniquePaths.add(file.absolutePath)) {
                             allFiles.add(file)
@@ -193,13 +167,10 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
             }
         }
         
-        // Tarih sırasına göre sırala (en yeni en önce)
         allFiles.sortByDescending { it.lastModified() }
         
-        // Toplam bulunan dosya sayısını logla
         android.util.Log.d("FileSearch", "Toplam ${allFiles.size} dosya bulundu")
         
-        // Sonuçları limitle (performans için)
         val maxFiles = 1000
         if (allFiles.size > maxFiles) {
             android.util.Log.d("FileSearch", "Maksimum dosya limiti: $maxFiles, tümü: ${allFiles.size}")
@@ -209,14 +180,12 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
         }
     }
     
-    // Belirli bir uzantıya sahip dosyaları bul
     private suspend fun getFilesByExtension(context: Context, extension: String): List<File> = withContext(Dispatchers.IO) {
         val files = mutableListOf<File>()
         val uniquePaths = HashSet<String>()
 
         android.util.Log.d("FileSearch", "$extension uzantılı dosyaları arama başlıyor")
 
-        // MediaStore ile arama (API düzeyine göre uygun sorgu kullan)
         try {
             val projection = arrayOf(
                 MediaStore.Files.FileColumns.DISPLAY_NAME,
@@ -225,7 +194,6 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
                 MediaStore.Files.FileColumns.MIME_TYPE
             )
 
-            // MIME type ve uzantı bazlı arama
             val mimeType = when (extension) {
                 "pdf" -> "application/pdf"
                 "doc" -> "application/msword"
@@ -238,7 +206,6 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
                 else -> null
             }
 
-            // Daha geniş bir arama için sorguyu genişlet
             val selection = if (mimeType != null) {
                 "${MediaStore.Files.FileColumns.MIME_TYPE} = ? OR ${MediaStore.Files.FileColumns.DISPLAY_NAME} LIKE ?"
             } else {
@@ -251,7 +218,6 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
                 arrayOf("%.$extension")
             }
 
-            // External storage query
             val queryUri = MediaStore.Files.getContentUri("external")
             var mediaStoreFileCount = 0
             context.contentResolver.query(
@@ -262,14 +228,12 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
                 "${MediaStore.Files.FileColumns.DATE_MODIFIED} DESC"
             )?.use { cursor ->
                 val pathColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATA)
-                val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DISPLAY_NAME)
 
                 android.util.Log.d("FileSearch", "MediaStore sorgusu: ${cursor.count} sonuç döndürdü")
 
                 while (cursor.moveToNext()) {
                     try {
                         val path = cursor.getString(pathColumn)
-                        val name = cursor.getString(nameColumn)
                         
                         if (path != null) {
                             val file = File(path)
@@ -297,7 +261,6 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
             android.util.Log.e("FileSearch", "MediaStore sorgu hatası", e)
         }
 
-        // Android 10+ için ContentResolver kullanarak alternatif sorgu yapma
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             try {
                 val contentResolver = context.contentResolver
@@ -342,10 +305,8 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
                                 id
                             )
                             
-                            // Dosyaya erişmeye çalış
                             try {
-                                contentResolver.openFileDescriptor(contentUri, "r")?.use { pfd ->
-                                    // FileDescriptor'dan gerçek dosyaya erişmek için çözüm yolu
+                                contentResolver.openFileDescriptor(contentUri, "r")?.use {
                                     val filePath = getPath(context, contentUri)
                                     if (filePath != null) {
                                         val file = File(filePath)
@@ -369,23 +330,18 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
             }
         }
 
-        // Özel dizinleri tara (izinler kontrol edilerek)
         val specialDirs = mutableListOf<File>().apply {
-            // Daha genel hedef dizinler
             add(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS))
             add(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS))
             
-            // Daha fazla ortak dizin ekle
             add(Environment.getExternalStorageDirectory())
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 context.getExternalFilesDirs(null).forEach { add(it) }
             }
             
-            // Android 10+ için uyumlu dizinler
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
                 add(File(Environment.getExternalStorageDirectory(), "Download"))
                 add(File(Environment.getExternalStorageDirectory(), "Documents"))
-                // Diğer yaygın klasörler
                 add(File(Environment.getExternalStorageDirectory(), "PDF"))
                 add(File(Environment.getExternalStorageDirectory(), "PDFs"))
                 add(File(Environment.getExternalStorageDirectory(), "Document"))
@@ -398,7 +354,6 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
             try {
                 if (directory.exists() && directory.isDirectory) {
                     val beforeCount = files.size
-                    // Özel dizinlerde daha derinden arama yap
                     searchInDirectory(directory, extension, files, uniquePaths, maxDepth = 3)
                     val afterCount = files.size
                     specialDirFileCount += (afterCount - beforeCount)
@@ -410,7 +365,6 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
         }
         android.util.Log.d("FileSearch", "Özel dizinlerden $specialDirFileCount $extension dosyası eklendi")
 
-        // Uygulamanın kendi dizinlerini de tara (her zaman erişilebilir)
         val appDirs = mutableListOf<File>().apply {
             add(context.filesDir)
             add(context.cacheDir)
@@ -437,13 +391,12 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
         files
     }
 
-    // Dizin içinde dosya arama (derinlik kontrolü ile)
     private fun searchInDirectory(
         directory: File,
         extension: String, 
         files: MutableList<File>, 
         uniquePaths: HashSet<String>,
-        maxDepth: Int = 3,  // Derinliği artırıyoruz
+        maxDepth: Int = 3,
         currentDepth: Int = 0
     ) {
         if (!directory.exists() || !directory.isDirectory || currentDepth > maxDepth) {
@@ -457,7 +410,6 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
                         file.isFile && file.name.lowercase().endsWith(".$extension") -> {
                             val absolutePath = file.absolutePath
                             if (uniquePaths.add(absolutePath)) {
-                                // Okuma iznini kontrol etmeden önce dosyayı ekle, ancak log tut
                                 files.add(file)
                                 if (!file.canRead()) {
                                     android.util.Log.w("FileSearch", "Dosya eklendi ama okuma izni yok: $absolutePath")
@@ -465,12 +417,10 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
                             }
                         }
                         file.isDirectory && currentDepth < maxDepth -> {
-                            // Alt dizine geçerken derinliği artır
                             searchInDirectory(file, extension, files, uniquePaths, maxDepth, currentDepth + 1)
                         }
                     }
                 } catch (e: SecurityException) {
-                    // Tek bir dosya hatasını atla ve devam et
                     android.util.Log.w("FileSearch", "Dosya erişim hatası: ${file.absolutePath}")
                 }
             }
@@ -479,7 +429,6 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
         }
     }
     
-    // ViewModel yok edildiğinde kaynakları temizle
     override fun onCleared() {
         super.onCleared()
         fileLoadingJob?.cancel()
@@ -487,7 +436,6 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
         allFilesCache.clear()
     }
 
-    // URI'den gerçek dosya yolunu çözme yardımcı metodu
     @SuppressLint("Range")
     private fun getPath(context: Context, uri: Uri): String? {
         try {
