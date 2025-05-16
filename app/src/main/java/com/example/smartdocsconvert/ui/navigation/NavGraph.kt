@@ -22,9 +22,11 @@ fun NavGraph(
     ) {
         composable(Screen.Home.route) {
             HomeScreen(onOpenFile = {
-                navController.navigate(Screen.FileConverter.route)
+                navController.navigate(Screen.FileConverter.route){
+                }
             }, onOpenGallery = {
-                navController.navigate(Screen.SelectPermissions.route)
+                navController.navigate(Screen.SelectPermissions.route){
+                }
             })
         }
 
@@ -73,8 +75,8 @@ fun NavGraph(
             
             FilterScreen(
                 navigateUp = {navController.navigate(Screen.SelectPermissions.route){
-                    popUpTo(Screen.Filter.route){
-                        inclusive = true
+                    popUpTo(Screen.Home.route){
+                        inclusive = false
                     }
                 } },
                 imageUris = selectedImageUris

@@ -133,6 +133,10 @@ fun SelectPermissionsScreen(
         }
     }
     
+    BackHandler {
+        navigateUp()
+    }
+    
     Scaffold(
         snackbarHost = {
             SnackbarHost(

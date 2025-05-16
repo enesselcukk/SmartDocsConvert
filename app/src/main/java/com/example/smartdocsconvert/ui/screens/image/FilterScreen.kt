@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.geometry.Rect
 import android.widget.Toast
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.smartdocsconvert.ui.components.AnimatedFeatureControls
@@ -52,7 +53,7 @@ fun FilterScreen(
 
     LaunchedEffect(uiState.navigateBack) {
         if (uiState.navigateBack) {
-            delay(1000)
+            delay(500)
             viewModel.resetNavigateBack()
             navigateUp()
         }
@@ -94,15 +95,24 @@ fun FilterScreen(
         }
     }
 
+
+    BackHandler {
+        if (uiState.activeFeature != null) {
+            viewModel.updateActiveFeature(null)
+        } else if (uiState.showDownloadOptions) {
+            viewModel.hideDownloadOptions()
+        } else if (uiState.showDownloadConfirmation) {
+            viewModel.cancelDownload()
+        } else {
+            navigateUp()
+        }
+    }
+
     Scaffold(
         topBar = {
             FilterTopAppBar(
                 onBackClick = {
-                    scope.launch {
-                        contentAlpha.animateTo(0f, tween(300))
-                        bottomBarHeight.animateTo(0f, tween(300))
-                        navigateUp()
-                    }
+                    navigateUp()
                 }
             )
         }

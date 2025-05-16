@@ -41,6 +41,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.BackHandler
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example.smartdocsconvert.R
@@ -83,6 +84,10 @@ fun SelectedImageScreen(
         ),
         label = "color"
     )
+
+    BackHandler {
+        navigateUp()
+    }
 
     Scaffold(
         topBar = {
