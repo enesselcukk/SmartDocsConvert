@@ -400,7 +400,7 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
         maxDepth: Int = 3,
         currentDepth: Int = 0
     ) {
-        if (!directory.exists() || !directory.isDirectory || currentDepth > maxDepth) {
+        if (directory.exists().not() || !directory.isDirectory || currentDepth > maxDepth) {
             return
         }
 

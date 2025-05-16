@@ -9,15 +9,8 @@ import android.os.Build
 import android.provider.Settings
 import androidx.core.content.ContextCompat
 
-/**
- * Dosya işlemleri için yardımcı işlevler
- */
+
 object FileUtils {
-
-
-    /**
-     * Gerekli izinleri dizi olarak döndürür
-     */
     fun getRequiredPermissions(): Array<String> {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             arrayOf(
@@ -32,9 +25,6 @@ object FileUtils {
         }
     }
 
-    /**
-     * Uygulama ayarlarını açar
-     */
     fun openAppSettings(context: Context) {
         val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
             data = Uri.fromParts("package", context.packageName, null)
@@ -43,9 +33,6 @@ object FileUtils {
         context.startActivity(intent)
     }
 
-    /**
-     * Dosya boyutunu formatlar
-     */
     fun formatFileSize(size: Long): String {
         val kb = size / 1024.0
         val mb = kb / 1024.0

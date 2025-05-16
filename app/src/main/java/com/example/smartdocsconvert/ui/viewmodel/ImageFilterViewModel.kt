@@ -656,7 +656,7 @@ class ImageFilterViewModel @Inject constructor(
         when (currentState.pendingDownloadType) {
             "image" -> {
                 if (currentState.processedImageUris.size > 1 || currentState.downloadAllImages) {
-                    downloadAllImages(customFilename.orEmpty())
+                    downloadAllImages(customFilename)
                 } else {
                     currentState.pendingDownloadUri?.let { uri ->
                         saveAsImage(
@@ -671,7 +671,7 @@ class ImageFilterViewModel @Inject constructor(
             }
             "pdf" -> {
                 if (currentState.downloadAllImages && currentState.processedImageUris.size > 1) {
-                    saveMultiPagePdf(currentState.processedImageUris, customFilename.orEmpty())
+                    saveMultiPagePdf(currentState.processedImageUris, customFilename)
                 } else {
                     currentState.pendingDownloadUri?.let { uri ->
                         saveAsPdf(uri)
