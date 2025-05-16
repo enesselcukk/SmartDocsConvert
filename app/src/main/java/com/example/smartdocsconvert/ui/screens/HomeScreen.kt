@@ -43,7 +43,6 @@ fun HomeScreen(
     onOpenGallery: () -> Unit,
     viewModel: FileViewModel = hiltViewModel()
 ) {
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
     // FileViewModel state observers
