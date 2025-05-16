@@ -77,7 +77,7 @@ fun ImageCropEditor(
                         val finalWidth = if (needToSwap) originalHeight else originalWidth
                         val finalHeight = if (needToSwap) originalWidth else originalHeight
                         
-                        android.util.Log.d("ImageCropEditor", 
+                       Log.d("ImageCropEditor",
                             "Original dimensions: ${originalWidth}x${originalHeight}, " +
                             "EXIF orientation: $orientation, " +
                             "Final dimensions: ${finalWidth}x${finalHeight}")
@@ -118,8 +118,7 @@ fun ImageCropEditor(
                 val colorMatrix = createColorMatrix(
                     brightness = uiState.brightnessValues.getOrNull(uiState.currentImageIndex) ?: 1f,
                     contrast = uiState.contrastValues.getOrNull(uiState.currentImageIndex) ?: 1f,
-                    filter = uiState.selectedFilters.getOrNull(uiState.currentImageIndex) ?: "Original",
-                    intensity = uiState.filterIntensityValues.getOrNull(uiState.currentImageIndex) ?: 0f
+                    filter = uiState.selectedFilters.getOrNull(uiState.currentImageIndex) ?: "Original"
                 )
 
                 val painter = rememberAsyncImagePainter(

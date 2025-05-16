@@ -2,6 +2,7 @@ package com.example.smartdocsconvert.ui.viewmodel
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -261,7 +262,7 @@ class ImageFilterViewModel @Inject constructor(
                     return@launch
                 }
 
-                android.util.Log.d("ImageFilterViewModel", "Normalized crop rect: $safeRect")
+               Log.d("ImageFilterViewModel", "Normalized crop rect: $safeRect")
                 
                 val cropX = (safeRect.left * width).toInt().coerceAtLeast(0)
                 val cropY = (safeRect.top * height).toInt().coerceAtLeast(0)
@@ -275,7 +276,7 @@ class ImageFilterViewModel @Inject constructor(
                 val logMessage = "Cropping: X=$cropX, Y=$cropY, Width=$cropWidth, Height=$cropHeight, " +
                     "Bitmap Dimensions=${width}x${height}, IsPortrait=$isPortraitCrop, " +
                     "CropRect=(${safeRect.left}, ${safeRect.top}, ${safeRect.right}, ${safeRect.bottom})"
-                android.util.Log.d("ImageFilterViewModel", logMessage)
+                Log.d("ImageFilterViewModel", logMessage)
                 
                 val sourceUri = currentState.processedImageUris[currentState.currentImageIndex]
                 val croppedUri = imageRepository.saveCroppedImage(
@@ -288,7 +289,7 @@ class ImageFilterViewModel @Inject constructor(
                 )
                 
                 if (croppedUri != null) {
-                    android.util.Log.d("ImageFilterViewModel", "Successfully got cropped URI: $croppedUri")
+                   Log.d("ImageFilterViewModel", "Successfully got cropped URI: $croppedUri")
                     
                     val newCroppedUris = currentState.croppedImageUris.toMutableList()
                     while (newCroppedUris.size <= currentState.currentImageIndex) {
@@ -317,7 +318,7 @@ class ImageFilterViewModel @Inject constructor(
                         )
                     }
                 } else {
-                    android.util.Log.e("ImageFilterViewModel", "Failed to get cropped URI")
+                   Log.e("ImageFilterViewModel", "Failed to get cropped URI")
                     _uiState.update { 
                         it.copy(
                             toastMessage = "Failed to crop the image",
@@ -326,7 +327,7 @@ class ImageFilterViewModel @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
-                android.util.Log.e("ImageFilterViewModel", "Error during crop: ${e.message}", e)
+               Log.e("ImageFilterViewModel", "Error during crop: ${e.message}", e)
                 _uiState.update {
                     it.copy(
                         toastMessage = "Kırpma işlemi sırasında hata oluştu: ${e.message}",
@@ -503,7 +504,7 @@ class ImageFilterViewModel @Inject constructor(
             state.copy(shapeItems = newShapesMap)
         }
         
-        android.util.Log.d("ImageFilterViewModel", "Added shape to image $currentIndex, total shapes: ${newShapesMap[currentIndex]?.size}")
+       Log.d("ImageFilterViewModel", "Added shape to image $currentIndex, total shapes: ${newShapesMap[currentIndex]?.size}")
     }
 
     /**
@@ -736,7 +737,7 @@ class ImageFilterViewModel @Inject constructor(
                     
                     downloadRequests.add(downloadRequest)
                 } catch (e: Exception) {
-                    android.util.Log.e("ImageFilterViewModel", "Error setting up download for image $index: ${e.message}")
+                   Log.e("ImageFilterViewModel", "Error setting up download for image $index: ${e.message}")
                 }
             }
             

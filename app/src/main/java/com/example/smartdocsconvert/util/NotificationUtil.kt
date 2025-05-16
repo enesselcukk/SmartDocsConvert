@@ -62,17 +62,6 @@ object NotificationUtil {
     fun showDownloadNotification(context: Context, file: File) {
         // Generate a unique notification ID based on the filename
         val notificationId = generateNotificationId(file.name)
-        
-        // Intent to open file browser at downloads folder
-        val fileManagerIntent = Intent(Intent.ACTION_GET_CONTENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type = "*/*"
-            // Downloads klasörünü başlangıç konumu olarak ayarla
-            putExtra(
-                DocumentsContract.EXTRA_INITIAL_URI,
-                MediaStore.Downloads.EXTERNAL_CONTENT_URI
-            )
-        }
 
         // Get file type and proper mime type
         val fileName = file.name

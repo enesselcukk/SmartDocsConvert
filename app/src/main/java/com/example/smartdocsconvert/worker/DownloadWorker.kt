@@ -9,6 +9,7 @@ import android.os.Build
 import android.provider.MediaStore
 import android.content.ContentValues
 import android.os.Environment
+import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.WorkerParameters
@@ -167,14 +168,14 @@ class DownloadWorker(
         try {
             val downloadType = inputData.getString(KEY_DOWNLOAD_TYPE) ?: return Result.failure()
             
-            android.util.Log.d("DownloadWorker", "Starting download work: type=$downloadType")
+           Log.d("DownloadWorker", "Starting download work: type=$downloadType")
             
             val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
             val randomId = Random.nextInt(1000, 9999)
             
             // Check if custom filename was provided
             val customFilename = inputData.getString(KEY_FILENAME)
-            android.util.Log.d("DownloadWorker", "Custom filename provided: $customFilename")
+           Log.d("DownloadWorker", "Custom filename provided: $customFilename")
             
             return when (downloadType) {
                 DOWNLOAD_TYPE_IMAGE -> {
@@ -187,7 +188,7 @@ class DownloadWorker(
                     val contrast = inputData.getFloat(KEY_CONTRAST, 1f)
                     val rotation = inputData.getFloat(KEY_ROTATION, 0f)
                     
-                    android.util.Log.d("DownloadWorker", "Processing image with filter=$selectedFilter, brightness=$brightness, contrast=$contrast")
+                   Log.d("DownloadWorker", "Processing image with filter=$selectedFilter, brightness=$brightness, contrast=$contrast")
                     
                     // Use custom filename if provided
                     val filename = customFilename ?: "SmartDocsConvert_${timeStamp}_$randomId.jpg"
@@ -213,7 +214,7 @@ class DownloadWorker(
                         val imageUriString = inputData.getString(KEY_IMAGE_URI) ?: return Result.failure()
                         val imageUri = Uri.parse(imageUriString)
                         
-                        android.util.Log.d("DownloadWorker", "Creating PDF from image: $imageUri")
+                       Log.d("DownloadWorker", "Creating PDF from image: $imageUri")
                         
                         // Verify the image URI is accessible
                         val isUriAccessible = context.contentResolver.openInputStream(imageUri)?.use { 
@@ -221,45 +222,45 @@ class DownloadWorker(
                         } ?: false
                         
                         if (!isUriAccessible) {
-                            android.util.Log.e("DownloadWorker", "Image URI is not accessible: $imageUri")
+                           Log.e("DownloadWorker", "Image URI is not accessible: $imageUri")
                             return Result.failure(Data.Builder().putString(KEY_ERROR_MESSAGE, "Image is not accessible").build())
                         }
                         
                         // Check if storage is available
                         val storageAvailable = Environment.getExternalStorageState() == Environment.MEDIA_MOUNTED
                         if (!storageAvailable) {
-                            android.util.Log.e("DownloadWorker", "External storage is not available")
+                           Log.e("DownloadWorker", "External storage is not available")
                             return Result.failure(Data.Builder().putString(KEY_ERROR_MESSAGE, "Cannot access storage").build())
                         }
                         
                         // Convert image to PDF
                         val fileName = customFilename ?: "SmartDocsConvert_${timeStamp}_$randomId.pdf"
-                        android.util.Log.d("DownloadWorker", "Creating PDF with filename: $fileName")
+                       Log.d("DownloadWorker", "Creating PDF with filename: $fileName")
                         
                         try {
                             val pdfFile = savePdfFromImage(imageUri, fileName)
                             
                             // Verify the PDF was created properly
                             if (!pdfFile.exists() || pdfFile.length() == 0L) {
-                                android.util.Log.e("DownloadWorker", "PDF file was not created or is empty: ${pdfFile.absolutePath}")
+                               Log.e("DownloadWorker", "PDF file was not created or is empty: ${pdfFile.absolutePath}")
                                 return Result.failure(Data.Builder().putString(KEY_ERROR_MESSAGE, "PDF file could not be created").build())
                             }
                             
                             // Show notification
                             NotificationUtil.createNotificationChannel(context)
-                            android.util.Log.d("DownloadWorker", "Attempting to show notification for: ${pdfFile.absolutePath}")
+                           Log.d("DownloadWorker", "Attempting to show notification for: ${pdfFile.absolutePath}")
                             
                             // Check if notification permission is granted
                             val hasNotificationPermission = NotificationUtil.hasNotificationPermission(context)
-                            android.util.Log.d("DownloadWorker", "Notification permission granted: $hasNotificationPermission")
+                           Log.d("DownloadWorker", "Notification permission granted: $hasNotificationPermission")
                             
                             NotificationUtil.showDownloadNotification(context, pdfFile)
                             
-                            android.util.Log.d("DownloadWorker", "PDF created successfully: ${pdfFile.absolutePath}")
+                           Log.d("DownloadWorker", "PDF created successfully: ${pdfFile.absolutePath}")
                             
                             return Result.success(Data.Builder().putString(KEY_RESULT_MESSAGE, "PDF saved to: Downloads/SmartDocsConvert").putString(KEY_OUTPUT_FILE_PATH, pdfFile.absolutePath).build())
                         } catch (e: Exception) {
-                            android.util.Log.e("DownloadWorker", "PDF creation error: ${e.message}", e)
+                           Log.e("DownloadWorker", "PDF creation error: ${e.message}", e)
                             
                             // Provide more specific error message based on the exception
                             val errorMsg = when {
@@ -274,7 +275,7 @@ class DownloadWorker(
                             return Result.failure(Data.Builder().putString(KEY_ERROR_MESSAGE, errorMsg).build())
                         }
                     } catch (e: Exception) {
-                        android.util.Log.e("DownloadWorker", "PDF creation failed: ${e.message}", e)
+                       Log.e("DownloadWorker", "PDF creation failed: ${e.message}", e)
                         return Result.failure(Data.Builder().putString(KEY_ERROR_MESSAGE, e.message).build())
                     }
                 }
@@ -292,7 +293,7 @@ class DownloadWorker(
                             )
                         }
                         
-                        android.util.Log.d("DownloadWorker", "Creating multi-page PDF from ${imageUriStrings.size} images")
+                       Log.d("DownloadWorker", "Creating multi-page PDF from ${imageUriStrings.size} images")
                         
                         // Convert string array to Uri list
                         val imageUris = imageUriStrings.map { Uri.parse(it) }
@@ -306,7 +307,7 @@ class DownloadWorker(
                         }
                         
                         if (inaccessibleUris.isNotEmpty()) {
-                            android.util.Log.e("DownloadWorker", "${inaccessibleUris.size} image URIs are not accessible")
+                           Log.e("DownloadWorker", "${inaccessibleUris.size} image URIs are not accessible")
                             return Result.failure(
                                 Data.Builder().putString(KEY_ERROR_MESSAGE, "${inaccessibleUris.size} images are not accessible").build()
                             )
@@ -315,7 +316,7 @@ class DownloadWorker(
                         // Check if storage is available
                         val storageAvailable = Environment.getExternalStorageState() == Environment.MEDIA_MOUNTED
                         if (!storageAvailable) {
-                            android.util.Log.e("DownloadWorker", "External storage is not available")
+                           Log.e("DownloadWorker", "External storage is not available")
                             return Result.failure(
                                 Data.Builder().putString(KEY_ERROR_MESSAGE, "Cannot access storage").build()
                             )
@@ -323,7 +324,7 @@ class DownloadWorker(
                         
                         // Convert images to multi-page PDF
                         val fileName = customFilename ?: "SmartDocsConvert_${timeStamp}_$randomId.pdf"
-                        android.util.Log.d("DownloadWorker", "Creating multi-page PDF with filename: $fileName")
+                       Log.d("DownloadWorker", "Creating multi-page PDF with filename: $fileName")
                         
                         try {
                             // Use the PdfUtil's createPdfFromImages method
@@ -331,7 +332,7 @@ class DownloadWorker(
                             
                             // Verify the PDF was created properly
                             if (!pdfFile.exists() || pdfFile.length() == 0L) {
-                                android.util.Log.e("DownloadWorker", "Multi-page PDF file was not created or is empty: ${pdfFile.absolutePath}")
+                               Log.e("DownloadWorker", "Multi-page PDF file was not created or is empty: ${pdfFile.absolutePath}")
                                 return Result.failure(
                                     Data.Builder().putString(KEY_ERROR_MESSAGE, "PDF file could not be created").build()
                                 )
@@ -341,7 +342,7 @@ class DownloadWorker(
                             NotificationUtil.createNotificationChannel(context)
                             NotificationUtil.showDownloadNotification(context, pdfFile)
                             
-                            android.util.Log.d("DownloadWorker", "Multi-page PDF created successfully: ${pdfFile.absolutePath}")
+                           Log.d("DownloadWorker", "Multi-page PDF created successfully: ${pdfFile.absolutePath}")
                             
                             return Result.success(
                                 Data.Builder()
@@ -350,7 +351,7 @@ class DownloadWorker(
                                     .build()
                             )
                         } catch (e: Exception) {
-                            android.util.Log.e("DownloadWorker", "Multi-page PDF creation error: ${e.message}", e)
+                           Log.e("DownloadWorker", "Multi-page PDF creation error: ${e.message}", e)
                             
                             // Provide more specific error message based on the exception
                             val errorMsg = when {
@@ -365,18 +366,18 @@ class DownloadWorker(
                             return Result.failure(Data.Builder().putString(KEY_ERROR_MESSAGE, errorMsg).build())
                         }
                     } catch (e: Exception) {
-                        android.util.Log.e("DownloadWorker", "Multi-page PDF creation failed: ${e.message}", e)
+                       Log.e("DownloadWorker", "Multi-page PDF creation failed: ${e.message}", e)
                         return Result.failure(Data.Builder().putString(KEY_ERROR_MESSAGE, e.message).build())
                     }
                 }
                 
                 else -> {
-                    android.util.Log.e("DownloadWorker", "Unknown download type: $downloadType")
+                   Log.e("DownloadWorker", "Unknown download type: $downloadType")
                     Result.failure()
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.e("DownloadWorker", "Worker failed: ${e.message}", e)
+           Log.e("DownloadWorker", "Worker failed: ${e.message}", e)
             return Result.failure(Data.Builder().putString(KEY_ERROR_MESSAGE, e.message).build())
         }
     }
@@ -450,7 +451,7 @@ class DownloadWorker(
                         // Try to locate the downloaded file
                         if (imageFile.exists()) {
                             NotificationUtil.showDownloadNotification(context, imageFile)
-                            android.util.Log.d("DownloadWorker", "Showing notification for image: ${imageFile.absolutePath}")
+                           Log.d("DownloadWorker", "Showing notification for image: ${imageFile.absolutePath}")
                         } else {
                             // If file isn't accessible directly, use the content URI to create a notification
                             val resolver = context.contentResolver
@@ -460,7 +461,7 @@ class DownloadWorker(
                                     if (idColumn >= 0) {
                                         val id = cursor.getLong(idColumn)
                                         val contentUri = Uri.withAppendedPath(MediaStore.Downloads.EXTERNAL_CONTENT_URI, id.toString())
-                                        android.util.Log.d("DownloadWorker", "Using content URI for notification: $contentUri")
+                                       Log.d("DownloadWorker", "Using content URI for notification: $contentUri")
                                         
                                         // Pass the file URI to the notification util
                                         val virtualFile = File(smartDocsDir, fileName)
@@ -470,7 +471,7 @@ class DownloadWorker(
                             }
                         }
                     } catch (e: Exception) {
-                        android.util.Log.e("DownloadWorker", "Error showing image notification: ${e.message}")
+                       Log.e("DownloadWorker", "Error showing image notification: ${e.message}")
                     }
                     
                     return "Image saved to: Downloads/SmartDocsConvert/$fileName"
@@ -499,10 +500,10 @@ class DownloadWorker(
                         NotificationUtil.createNotificationChannel(context)
                         
                         NotificationUtil.showDownloadNotification(context, imageFile)
-                        android.util.Log.d("DownloadWorker", "Showing notification for image: ${imageFile.absolutePath}")
+                       Log.d("DownloadWorker", "Showing notification for image: ${imageFile.absolutePath}")
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("DownloadWorker", "Error showing image notification: ${e.message}")
+                   Log.e("DownloadWorker", "Error showing image notification: ${e.message}")
                 }
                 
                 return "Image saved to: Downloads/SmartDocsConvert/$fileName"
@@ -516,23 +517,23 @@ class DownloadWorker(
     
     private fun savePdfFromImage(imageUri: Uri, fileName: String): File {
         try {
-            android.util.Log.d("DownloadWorker", "Starting PDF creation process")
+           Log.d("DownloadWorker", "Starting PDF creation process")
             
             // Try two different approaches for PDF creation
             val isSuccess = try {
                 // First method: Create PDF using PdfUtil
-                android.util.Log.d("DownloadWorker", "Trying PdfUtil method")
+               Log.d("DownloadWorker", "Trying PdfUtil method")
                 val pdfFile = PdfUtil.createPdfFromImage(context, imageUri, fileName)
-                android.util.Log.d("DownloadWorker", "PdfUtil method succeeded: ${pdfFile.absolutePath}")
+               Log.d("DownloadWorker", "PdfUtil method succeeded: ${pdfFile.absolutePath}")
                 return pdfFile
             } catch (e: Exception) {
-                android.util.Log.e("DownloadWorker", "PdfUtil method failed: ${e.message}", e)
+               Log.e("DownloadWorker", "PdfUtil method failed: ${e.message}", e)
                 false
             }
             
             if (isSuccess.not()) {
                 // Second method: Use Android's built-in PDF API
-                android.util.Log.d("DownloadWorker", "Trying Android built-in PDF method")
+               Log.d("DownloadWorker", "Trying Android built-in PDF method")
                 
                 // Create output directory
                 val outputDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
@@ -543,10 +544,10 @@ class DownloadWorker(
                     smartDocsDownloadDir.mkdirs()
                 }
                 
-                android.util.Log.d("DownloadWorker", "Output directory: ${smartDocsDownloadDir.absolutePath}")
+               Log.d("DownloadWorker", "Output directory: ${smartDocsDownloadDir.absolutePath}")
                 
                 val outputFile = File(smartDocsDownloadDir, fileName)
-                android.util.Log.d("DownloadWorker", "Output file path: ${outputFile.absolutePath}")
+               Log.d("DownloadWorker", "Output file path: ${outputFile.absolutePath}")
                 
                 // Load the bitmap
                 val bitmap = loadBitmapFromUri(imageUri)
@@ -590,7 +591,7 @@ class DownloadWorker(
             
             throw IllegalStateException("Both PDF creation methods failed")
         } catch (e: Exception) {
-            android.util.Log.e("DownloadWorker", "Error in savePdfFromImage: ${e.message}", e)
+           Log.e("DownloadWorker", "Error in savePdfFromImage: ${e.message}", e)
             throw e
         }
     }
@@ -606,7 +607,7 @@ class DownloadWorker(
                 BitmapFactory.decodeStream(it, null, options)
             }
             
-            android.util.Log.d("DownloadWorker", "Original image dimensions: ${options.outWidth}x${options.outHeight}")
+           Log.d("DownloadWorker", "Original image dimensions: ${options.outWidth}x${options.outHeight}")
             
             // Sampling for large images
             options.inJustDecodeBounds = false
@@ -616,7 +617,7 @@ class DownloadWorker(
                     options.outWidth / 2048
                 )
                 options.inSampleSize = sampleSize
-                android.util.Log.d("DownloadWorker", "Using sample size $sampleSize for large image")
+               Log.d("DownloadWorker", "Using sample size $sampleSize for large image")
             }
             
             // Memory optimization
@@ -627,7 +628,7 @@ class DownloadWorker(
                 BitmapFactory.decodeStream(it, null, options)
             }
         } catch (e: Exception) {
-            android.util.Log.e("DownloadWorker", "Error loading bitmap: ${e.message}", e)
+           Log.e("DownloadWorker", "Error loading bitmap: ${e.message}", e)
             return null
         }
     }

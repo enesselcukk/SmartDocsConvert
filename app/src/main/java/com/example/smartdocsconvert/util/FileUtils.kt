@@ -13,20 +13,8 @@ import androidx.core.content.ContextCompat
  * Dosya işlemleri için yardımcı işlevler
  */
 object FileUtils {
-    
-    /**
-     * İzinlerin verilip verilmediğini kontrol eder
-     */
-    fun checkPermissions(context: Context): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_AUDIO) == PackageManager.PERMISSION_GRANTED
-        } else {
-            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
-        }
-    }
-    
+
+
     /**
      * Gerekli izinleri dizi olarak döndürür
      */
@@ -43,7 +31,7 @@ object FileUtils {
             )
         }
     }
-    
+
     /**
      * Uygulama ayarlarını açar
      */
@@ -54,7 +42,7 @@ object FileUtils {
         }
         context.startActivity(intent)
     }
-    
+
     /**
      * Dosya boyutunu formatlar
      */
@@ -67,18 +55,4 @@ object FileUtils {
             else -> String.format("%d Bytes", size)
         }
     }
-    
-    /**
-     * Dosya tipi için MIME tipini döndürür
-     */
-    fun getMimeTypeForFileType(fileType: String): String {
-        return when (fileType) {
-            "PDF" -> "application/pdf"
-            "DOC", "DOCX" -> "application/msword"
-            "PPT", "PPTX" -> "application/vnd.ms-powerpoint"
-            "XLS", "XLSX" -> "application/vnd.ms-excel"
-            "TXT" -> "text/plain"
-            else -> "*/*"
-        }
-    }
-} 
+}

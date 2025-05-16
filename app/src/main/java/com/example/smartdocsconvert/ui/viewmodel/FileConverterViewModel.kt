@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -120,7 +121,7 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
                 
             } catch (e: Exception) {
                 _uiState.update { it.copy(lastError = e.message, isLoading = false) }
-                android.util.Log.e("FileConverter", "Dosya yükleme hatası", e)
+               Log.e("FileConverter", "Dosya yükleme hatası", e)
             }
         }
     }
@@ -129,7 +130,7 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
         allFilesCache.clear()
         fileCache.clear()
         
-        android.util.Log.d("FileSearch", "Cache temizlendi, dosyalar yeniden yükleniyor...")
+       Log.d("FileSearch", "Cache temizlendi, dosyalar yeniden yükleniyor...")
         
         refreshFiles(context)
     }
@@ -139,7 +140,7 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
         val allFiles = mutableListOf<File>()
         val uniquePaths = HashSet<String>()
         
-        android.util.Log.d("FileSearch", "Dosya arama başlatılıyor...")
+       Log.d("FileSearch", "Dosya arama başlatılıyor...")
         
         for (extension in supportedExtensions) {
             val cachedFiles = fileCache[extension]
@@ -149,7 +150,7 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
                         allFiles.add(file)
                     }
                 }
-                android.util.Log.d("FileSearch", "$extension: cache'den ${cachedFiles.size} dosya alındı")
+               Log.d("FileSearch", "$extension: cache'den ${cachedFiles.size} dosya alındı")
             } else {
                 try {
                     val files = getFilesByExtension(context, extension)
@@ -160,20 +161,20 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
                             allFiles.add(file)
                         }
                     }
-                    android.util.Log.d("FileSearch", "$extension: ${files.size} dosya bulundu")
+                   Log.d("FileSearch", "$extension: ${files.size} dosya bulundu")
                 } catch (e: Exception) {
-                    android.util.Log.e("FileSearch", "$extension dosyalarını yükleme hatası", e)
+                   Log.e("FileSearch", "$extension dosyalarını yükleme hatası", e)
                 }
             }
         }
         
         allFiles.sortByDescending { it.lastModified() }
         
-        android.util.Log.d("FileSearch", "Toplam ${allFiles.size} dosya bulundu")
+       Log.d("FileSearch", "Toplam ${allFiles.size} dosya bulundu")
         
         val maxFiles = 1000
         if (allFiles.size > maxFiles) {
-            android.util.Log.d("FileSearch", "Maksimum dosya limiti: $maxFiles, tümü: ${allFiles.size}")
+           Log.d("FileSearch", "Maksimum dosya limiti: $maxFiles, tümü: ${allFiles.size}")
             allFiles.subList(0, maxFiles)
         } else {
             allFiles
@@ -184,7 +185,7 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
         val files = mutableListOf<File>()
         val uniquePaths = HashSet<String>()
 
-        android.util.Log.d("FileSearch", "$extension uzantılı dosyaları arama başlıyor")
+       Log.d("FileSearch", "$extension uzantılı dosyaları arama başlıyor")
 
         try {
             val projection = arrayOf(
@@ -229,7 +230,7 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
             )?.use { cursor ->
                 val pathColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATA)
 
-                android.util.Log.d("FileSearch", "MediaStore sorgusu: ${cursor.count} sonuç döndürdü")
+               Log.d("FileSearch", "MediaStore sorgusu: ${cursor.count} sonuç döndürdü")
 
                 while (cursor.moveToNext()) {
                     try {
@@ -245,20 +246,20 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
                                         mediaStoreFileCount++
                                     }
                                 } else {
-                                    android.util.Log.w("FileSearch", "Dosya okunamıyor: $path")
+                                   Log.w("FileSearch", "Dosya okunamıyor: $path")
                                 }
                             } else {
-                                android.util.Log.w("FileSearch", "Dosya mevcut değil: $path")
+                               Log.w("FileSearch", "Dosya mevcut değil: $path")
                             }
                         }
                     } catch (e: Exception) {
-                        android.util.Log.e("FileSearch", "Dosya işleme hatası", e)
+                       Log.e("FileSearch", "Dosya işleme hatası", e)
                     }
                 }
             }
-            android.util.Log.d("FileSearch", "MediaStore'dan $mediaStoreFileCount $extension dosyası eklendi")
+           Log.d("FileSearch", "MediaStore'dan $mediaStoreFileCount $extension dosyası eklendi")
         } catch (e: Exception) {
-            android.util.Log.e("FileSearch", "MediaStore sorgu hatası", e)
+           Log.e("FileSearch", "MediaStore sorgu hatası", e)
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -277,7 +278,7 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
                 }
                 
                 if (mimeType.isNotEmpty()) {
-                    android.util.Log.d("FileSearch", "Android 10+ için ContentResolver sorgusu yapılıyor")
+                   Log.d("FileSearch", "Android 10+ için ContentResolver sorgusu yapılıyor")
                     var contentResolverFileCount = 0
                     
                     val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL)
@@ -291,7 +292,7 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
                         selectionArgs,
                         MediaStore.Files.FileColumns.DATE_MODIFIED + " DESC"
                     )?.use { cursor ->
-                        android.util.Log.d("FileSearch", "ContentResolver sorgusu: ${cursor.count} sonuç")
+                       Log.d("FileSearch", "ContentResolver sorgusu: ${cursor.count} sonuç")
                         
                         val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
                         val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DISPLAY_NAME)
@@ -319,14 +320,14 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
                                     }
                                 }
                             } catch (e: Exception) {
-                                android.util.Log.e("FileSearch", "ContentResolver dosya erişim hatası: $name", e)
+                               Log.e("FileSearch", "ContentResolver dosya erişim hatası: $name", e)
                             }
                         }
                     }
-                    android.util.Log.d("FileSearch", "ContentResolver'dan $contentResolverFileCount $extension dosyası eklendi")
+                   Log.d("FileSearch", "ContentResolver'dan $contentResolverFileCount $extension dosyası eklendi")
                 }
             } catch (e: Exception) {
-                android.util.Log.e("FileSearch", "ContentResolver sorgu hatası", e)
+               Log.e("FileSearch", "ContentResolver sorgu hatası", e)
             }
         }
 
@@ -357,13 +358,13 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
                     searchInDirectory(directory, extension, files, uniquePaths, maxDepth = 3)
                     val afterCount = files.size
                     specialDirFileCount += (afterCount - beforeCount)
-                    android.util.Log.d("FileSearch", "Dizin taraması: ${directory.absolutePath}, bulunan: ${afterCount - beforeCount}")
+                   Log.d("FileSearch", "Dizin taraması: ${directory.absolutePath}, bulunan: ${afterCount - beforeCount}")
                 }
             } catch (e: SecurityException) {
-                android.util.Log.e("FileSearch", "Özel dizin erişim hatası: ${directory.absolutePath}", e)
+               Log.e("FileSearch", "Özel dizin erişim hatası: ${directory.absolutePath}", e)
             }
         }
-        android.util.Log.d("FileSearch", "Özel dizinlerden $specialDirFileCount $extension dosyası eklendi")
+       Log.d("FileSearch", "Özel dizinlerden $specialDirFileCount $extension dosyası eklendi")
 
         val appDirs = mutableListOf<File>().apply {
             add(context.filesDir)
@@ -380,14 +381,14 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
                 searchInDirectory(directory, extension, files, uniquePaths, maxDepth = 5)
                 val afterCount = files.size
                 appDirFileCount += (afterCount - beforeCount)
-                android.util.Log.d("FileSearch", "App dizini: ${directory.absolutePath}, bulunan: ${afterCount - beforeCount}")
+               Log.d("FileSearch", "App dizini: ${directory.absolutePath}, bulunan: ${afterCount - beforeCount}")
             } catch (e: Exception) {
-                android.util.Log.e("FileSearch", "Dizin erişim hatası: ${directory.absolutePath}", e)
+               Log.e("FileSearch", "Dizin erişim hatası: ${directory.absolutePath}", e)
             }
         }
-        android.util.Log.d("FileSearch", "Uygulama dizinlerinden $appDirFileCount $extension dosyası eklendi")
+       Log.d("FileSearch", "Uygulama dizinlerinden $appDirFileCount $extension dosyası eklendi")
 
-        android.util.Log.d("FileSearch", "Toplam ${files.size} $extension dosyası bulundu")
+       Log.d("FileSearch", "Toplam ${files.size} $extension dosyası bulundu")
         files
     }
 
@@ -412,7 +413,7 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
                             if (uniquePaths.add(absolutePath)) {
                                 files.add(file)
                                 if (!file.canRead()) {
-                                    android.util.Log.w("FileSearch", "Dosya eklendi ama okuma izni yok: $absolutePath")
+                                   Log.w("FileSearch", "Dosya eklendi ama okuma izni yok: $absolutePath")
                                 }
                             }
                         }
@@ -421,11 +422,11 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
                         }
                     }
                 } catch (e: SecurityException) {
-                    android.util.Log.w("FileSearch", "Dosya erişim hatası: ${file.absolutePath}")
+                   Log.w("FileSearch", "Dosya erişim hatası: ${file.absolutePath}")
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.e("FileSearch", "Dizin listeleme hatası: ${directory.absolutePath}", e)
+           Log.e("FileSearch", "Dizin listeleme hatası: ${directory.absolutePath}", e)
         }
     }
     
@@ -448,13 +449,13 @@ class FileConverterViewModel @Inject constructor() : ViewModel() {
                         return cursor.getString(cursor.getColumnIndex(MediaStore.Files.FileColumns.DATA))
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("FileSearch", "URI yol çözümleme hatası", e)
+                   Log.e("FileSearch", "URI yol çözümleme hatası", e)
                 } finally {
                     cursor?.close()
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.e("FileSearch", "getPath hatası", e)
+           Log.e("FileSearch", "getPath hatası", e)
         }
         return null
     }
