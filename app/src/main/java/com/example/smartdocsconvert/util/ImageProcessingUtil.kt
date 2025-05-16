@@ -7,21 +7,9 @@ import android.graphics.ColorMatrixColorFilter
 import android.graphics.Matrix
 import android.graphics.Paint
 
-/**
- * Utility class for image processing operations like filtering, rotation, and effects.
- */
+
 object ImageProcessingUtil {
-    
-    /**
-     * Process an image with filters, brightness, contrast, and rotation
-     * 
-     * @param sourceBitmap The original bitmap to process
-     * @param filterName The name of the filter to apply
-     * @param brightness The brightness adjustment (1.0f is normal)
-     * @param contrast The contrast adjustment (1.0f is normal)
-     * @param rotationAngle The rotation angle in degrees
-     * @return The processed bitmap
-     */
+
     fun processImage(
         sourceBitmap: Bitmap,
         filterName: String,
@@ -29,7 +17,6 @@ object ImageProcessingUtil {
         contrast: Float,
         rotationAngle: Float
     ): Bitmap {
-        // Apply filters and effects
         val colorMatrix = ColorMatrix()
         applyColorMatrixForFilter(
             colorMatrix,
@@ -42,8 +29,7 @@ object ImageProcessingUtil {
         val paint = Paint().apply {
             colorFilter = colorMatrixFilter
         }
-        
-        // Apply rotation if needed
+
         val rotatedBitmap = if (rotationAngle != 0f) {
             val rotationMatrix = Matrix().apply {
                 postRotate(rotationAngle)
@@ -60,8 +46,7 @@ object ImageProcessingUtil {
         } else {
             sourceBitmap
         }
-        
-        // Draw the processed image to a canvas
+
         val resultBitmap = Bitmap.createBitmap(
             rotatedBitmap.width,
             rotatedBitmap.height,
@@ -69,18 +54,14 @@ object ImageProcessingUtil {
         )
         val canvas = Canvas(resultBitmap)
         canvas.drawBitmap(rotatedBitmap, 0f, 0f, paint)
-        
-        // Clean up if a new bitmap was created for rotation
+
         if (rotatedBitmap != sourceBitmap) {
             rotatedBitmap.recycle()
         }
         
         return resultBitmap
     }
-    
-    /**
-     * Apply a color matrix for the selected filter
-     */
+
     private fun applyColorMatrixForFilter(
         colorMatrix: ColorMatrix,
         filterName: String,
@@ -88,20 +69,19 @@ object ImageProcessingUtil {
         contrast: Float
     ) {
         when (filterName) {
-            "Original" -> {
-                val scale = contrast
-                val translate = (-.5f * scale + .5f) * 255f
+            FILTER_NAME_ORIGINAL -> {
+                val translate = (-.5f * contrast + .5f) * 255f
                 
                 val matrixValues = floatArrayOf(
-                    brightness * scale, 0f, 0f, 0f, translate,
-                    0f, brightness * scale, 0f, 0f, translate,
-                    0f, 0f, brightness * scale, 0f, translate,
+                    brightness * contrast, 0f, 0f, 0f, translate,
+                    0f, brightness * contrast, 0f, 0f, translate,
+                    0f, 0f, brightness * contrast, 0f, translate,
                     0f, 0f, 0f, 1f, 0f
                 )
                 colorMatrix.set(matrixValues)
             }
-            
-            "Clarendon" -> {
+
+            FILTER_NAME_CLARENDON-> {
                 val warmth = 1.1f
                 val filterBrightness = 1.1f * brightness
                 val scale = contrast * 1.2f
@@ -115,8 +95,8 @@ object ImageProcessingUtil {
                 )
                 colorMatrix.set(matrixValues)
             }
-            
-            "Moon" -> {
+
+            FILTER_NAME_MOON -> {
                 val greyScale = ColorMatrix()
                 greyScale.setSaturation(0.5f)
                 
@@ -141,8 +121,8 @@ object ImageProcessingUtil {
                 colorMatrix.postConcat(adjustedBrightness)
                 colorMatrix.postConcat(adjustedContrast)
             }
-            
-            "Lark" -> {
+
+            FILTER_NAME_LARK -> {
                 val coolerTint = ColorMatrix()
                 coolerTint.setScale(0.95f, 1.05f, 1.05f, 1.0f)
                 
@@ -164,8 +144,8 @@ object ImageProcessingUtil {
                 colorMatrix.postConcat(adjustedBrightness)
                 colorMatrix.postConcat(adjustedContrast)
             }
-            
-            "Reyes" -> {
+
+            FILTER_NAME_REYES -> {
                 val warmthMatrix = ColorMatrix()
                 warmthMatrix.setScale(1.1f, 1.0f, 0.9f, 1.0f)
                 
@@ -191,8 +171,8 @@ object ImageProcessingUtil {
                 colorMatrix.postConcat(adjustedBrightness)
                 colorMatrix.postConcat(adjustedContrast)
             }
-            
-            "Juno" -> {
+
+            FILTER_NAME_JUNO -> {
                 val warmthMatrix = ColorMatrix()
                 warmthMatrix.setScale(1.05f, 1.0f, 0.95f, 1.0f)
                 
@@ -214,8 +194,8 @@ object ImageProcessingUtil {
                 colorMatrix.postConcat(contrastMatrix)
                 colorMatrix.postConcat(brightnessMatrix)
             }
-            
-            "Gingham" -> {
+
+            FILTER_NAME_GINGHAM -> {
                 val coolTint = ColorMatrix()
                 coolTint.setScale(0.95f, 0.95f, 1.1f, 1.0f)
                 
@@ -248,14 +228,12 @@ object ImageProcessingUtil {
             }
 
             else -> {
-                // Default to original
-                val scale = contrast
-                val translate = (-.5f * scale + .5f) * 255f
+                val translate = (-.5f * contrast + .5f) * 255f
                 
                 val matrixValues = floatArrayOf(
-                    brightness * scale, 0f, 0f, 0f, translate,
-                    0f, brightness * scale, 0f, 0f, translate,
-                    0f, 0f, brightness * scale, 0f, translate,
+                    brightness * contrast, 0f, 0f, 0f, translate,
+                    0f, brightness * contrast, 0f, 0f, translate,
+                    0f, 0f, brightness * contrast, 0f, translate,
                     0f, 0f, 0f, 1f, 0f
                 )
                 colorMatrix.set(matrixValues)
