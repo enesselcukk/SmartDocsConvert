@@ -8,10 +8,13 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.smartdocsconvert.ui.screens.HomeScreen
+import com.example.smartdocsconvert.ui.screens.document.DocumentViewerScreen
 import com.example.smartdocsconvert.ui.screens.file.ConvertFileScreen
 import com.example.smartdocsconvert.ui.screens.image.FilterScreen
 import com.example.smartdocsconvert.ui.screens.image.SelectPermissionsScreen
 import com.example.smartdocsconvert.ui.screens.image.SelectedImageScreen
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 
 @Composable
 fun NavGraph(
@@ -27,7 +30,8 @@ fun NavGraph(
             }, onOpenGallery = {
                 navController.navigate(Screen.SelectPermissions.route){
                 }
-            })
+            },
+                navController = navController)
         }
 
         composable(Screen.SelectPermissions.route) {
@@ -74,19 +78,43 @@ fun NavGraph(
             } ?: emptyList()
             
             FilterScreen(
-                navigateUp = {navController.navigate(Screen.SelectPermissions.route){
-                    popUpTo(Screen.Home.route){
-                        inclusive = false
-                    }
-                } },
+                navigateUp = {
+                    navController.navigate(Screen.SelectPermissions.route){
+                        popUpTo(Screen.Home.route){
+                            inclusive = false
+                        }
+                    } 
+                },
                 imageUris = selectedImageUris
             )
         }
 
         composable(route = Screen.FileConverter.route) {
-            ConvertFileScreen(onBackClick = {
-                navController.navigateUp()
-            }, onNextClick = {})
+            ConvertFileScreen(
+                onBackClick = {
+                    navController.navigateUp()
+                }, 
+                onNextClick = {}
+            )
+        }
+
+        composable(
+            route = "${Screen.DocumentViewer.route}/{documentPath}",
+            arguments = listOf(
+                navArgument("documentPath") {
+                    type = NavType.StringType
+                }
+            )
+        ) { backStackEntry ->
+            val encodedPath = backStackEntry.arguments?.getString("documentPath") ?: ""
+            val documentPath = URLDecoder.decode(encodedPath, StandardCharsets.UTF_8.toString())
+            
+            DocumentViewerScreen(
+                documentPath = documentPath,
+                onBackClick = {
+                    navController.navigateUp()
+                }
+            )
         }
     }
 } 

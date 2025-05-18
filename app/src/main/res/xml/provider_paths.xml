@@ -1,12 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
+    <!-- Tüm harici depolama -->
     <external-path
         name="external_files"
         path="." />
+    
+    <!-- Uygulama önbelleği -->
     <cache-path
         name="cache"
         path="." />
+    
+    <!-- Uygulama harici dosyaları -->
     <external-files-path
         name="external_files_path"
-        path="Pictures" />
+        path="." />
+    
+    <!-- Uygulama dahili dosyaları -->
+    <files-path
+        name="files"
+        path="." />
+        
+    <!-- İndirilenler klasörü -->
+    <external-path
+        name="downloads"
+        path="Download" />
+        
+    <!-- Belgeler klasörü -->
+    <external-path
+        name="documents"
+        path="Documents" />
 </paths> 
