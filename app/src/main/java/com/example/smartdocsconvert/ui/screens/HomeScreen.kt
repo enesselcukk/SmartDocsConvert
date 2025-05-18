@@ -1,10 +1,14 @@
 package com.example.smartdocsconvert.ui.screens
 
+import android.text.format.Formatter
 import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -13,6 +17,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,31 +31,31 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import com.example.smartdocsconvert.R
 import com.example.smartdocsconvert.data.model.DocumentModel
+import com.example.smartdocsconvert.ui.navigation.Screen
 import com.example.smartdocsconvert.ui.theme.FilterColors
 import com.example.smartdocsconvert.ui.viewmodel.FileViewModel
 import com.example.smartdocsconvert.ui.viewmodel.SortType
 import com.example.smartdocsconvert.ui.viewmodel.ViewType
+import com.example.smartdocsconvert.di.PermissionHelperEntryPoint
+import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.navigation.NavController
-import com.example.smartdocsconvert.ui.navigation.Screen
-import android.text.format.Formatter
-import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun HomeScreen(
@@ -57,6 +64,17 @@ fun HomeScreen(
     navController: NavController,
     viewModel: FileViewModel = hiltViewModel()
 ) {
+
+    val context = LocalContext.current
+    val permissionHelper = remember {
+        val appContext = context.applicationContext
+        val hiltEntryPoint = EntryPointAccessors.fromApplication(
+            appContext,
+            PermissionHelperEntryPoint::class.java
+        )
+        hiltEntryPoint.permissionHelper()
+    }
+    
     val documentsList by viewModel.documentsList.collectAsState()
     val currentSortType by viewModel.currentSortType.collectAsState()
     val currentViewType by viewModel.currentViewType.collectAsState()
@@ -64,19 +82,47 @@ fun HomeScreen(
 
     val scope = rememberCoroutineScope()
 
+    var hasStoragePermission by remember { mutableStateOf(permissionHelper.hasStoragePermissions()) }
+    var showPermissionRationale by remember { mutableStateOf(false) }
+    var permissionRequestCount by remember { mutableStateOf(0) }
+
     val filePickerRequested by viewModel.filePickerRequested.collectAsState()
     val galleryPickerRequested by viewModel.galleryPickerRequested.collectAsState()
 
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.values.all { it }
+        permissionRequestCount++
+        hasStoragePermission = allGranted
+
+        if (!allGranted && permissionRequestCount > 1) {
+            showPermissionRationale = true
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        hasStoragePermission = permissionHelper.hasStoragePermissions()
+    }
+
     LaunchedEffect(filePickerRequested) {
         if (filePickerRequested) {
-            onOpenFile()
+            if (hasStoragePermission) {
+                onOpenFile()
+            } else {
+                permissionLauncher.launch(permissionHelper.getRequiredPermissions())
+            }
             viewModel.onFilePickerCompleted()
         }
     }
 
     LaunchedEffect(galleryPickerRequested) {
         if (galleryPickerRequested) {
-            onOpenGallery()
+            if (hasStoragePermission) {
+                onOpenGallery()
+            } else {
+                permissionLauncher.launch(permissionHelper.getRequiredPermissions())
+            }
             viewModel.onGalleryPickerCompleted()
         }
     }
@@ -102,6 +148,18 @@ fun HomeScreen(
 
     LaunchedEffect(Unit) {
         isVisible = true
+    }
+
+    if (showPermissionRationale) {
+        PermissionDeniedDialog(
+            onGoToSettings = {
+                permissionHelper.openAppSettings(context)
+                showPermissionRationale = false
+            },
+            onClose = {
+                showPermissionRationale = false
+            }
+        )
     }
 
     Box(
@@ -142,152 +200,485 @@ fun HomeScreen(
                 )
         )
 
+        // Main content
         AnimatedVisibility(
             visible = isVisible,
             enter = fadeIn(animationSpec = tween(1000)) +
                     slideInVertically(initialOffsetY = { 40 }, animationSpec = tween(1000))
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = 16.dp)
-            ) {
-                val listState = rememberLazyListState()
-                val isScrolled = remember { derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0 } }
-                val scrollOffset = remember { derivedStateOf { listState.firstVisibleItemScrollOffset } }
-
-                AnimatedVisibility(
-                    visible = !isScrolled.value,
-                    enter = fadeIn() + expandVertically(),
-                    exit = fadeOut() + shrinkVertically()
+            if (!hasStoragePermission) {
+                StoragePermissionRequest(
+                    onRequestPermission = {
+                        permissionLauncher.launch(permissionHelper.getRequiredPermissions())
+                    }
+                )
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = 16.dp)
                 ) {
-                    Column {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "PDF",
-                                    fontSize = 28.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = Color.White,
-                                    modifier = Modifier
-                                        .graphicsLayer {
-                                            shadowElevation = 8f
-                                        }
-                                )
-                                
-                                Card(
-                                    modifier = Modifier
-                                        .padding(start = 8.dp)
-                                        .height(36.dp),
-                                    shape = RoundedCornerShape(20.dp),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = Color.Transparent
-                                    ),
-                                    border = BorderStroke(
-                                        width = 1.dp,
-                                        brush = Brush.linearGradient(
-                                            colors = listOf(FilterColors.primaryColor, FilterColors.primaryVariant)
-                                        )
+                    val listState = rememberLazyListState()
+                    val isScrolled = remember { derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0 } }
+                    val scrollOffset = remember { derivedStateOf { listState.firstVisibleItemScrollOffset } }
+
+                    AnimatedVisibility(
+                        visible = !isScrolled.value,
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically()
+                    ) {
+                        Column {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "PDF",
+                                        fontSize = 28.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color.White,
+                                        modifier = Modifier
+                                            .graphicsLayer {
+                                                shadowElevation = 8f
+                                            }
                                     )
+                                    
+                                    Card(
+                                        modifier = Modifier
+                                            .padding(start = 8.dp)
+                                            .height(36.dp),
+                                        shape = RoundedCornerShape(20.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = Color.Transparent
+                                        ),
+                                        border = BorderStroke(
+                                            width = 1.dp,
+                                            brush = Brush.linearGradient(
+                                                colors = listOf(FilterColors.primaryColor, FilterColors.primaryVariant)
+                                            )
+                                        )
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(
+                                                    brush = Brush.linearGradient(
+                                                        colors = listOf(
+                                                            FilterColors.primaryColor.copy(alpha = 0.2f),
+                                                            FilterColors.primaryVariant.copy(alpha = 0.1f)
+                                                        )
+                                                    )
+                                                )
+                                                .padding(horizontal = 12.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "Converter",
+                                                fontSize = 20.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color.White
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
+                                    val premiumInteraction = remember { MutableInteractionSource() }
+                                    var isPremiumPressed by remember { mutableStateOf(false) }
+                                    val premiumScale by animateFloatAsState(
+                                        targetValue = if (isPremiumPressed) 1.1f else 1f,
+                                        animationSpec = spring(
+                                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                                            stiffness = Spring.StiffnessLow
+                                        ),
+                                        label = ""
+                                    )
+
+                                    val premiumGlow by infiniteTransition.animateFloat(
+                                        initialValue = 0.8f,
+                                        targetValue = 1.1f,
+                                        animationSpec = infiniteRepeatable(
+                                            animation = tween(1000), 
+                                            repeatMode = RepeatMode.Reverse
+                                        ),
+                                        label = ""
+                                    )
+                                    
                                     Box(
                                         modifier = Modifier
-                                            .fillMaxSize()
+                                            .size(42.dp)
+                                            .scale(premiumScale)
+                                            .graphicsLayer {
+                                                shadowElevation = 4f
+                                            }
+                                            .clip(CircleShape)
                                             .background(
-                                                brush = Brush.linearGradient(
+                                                brush = Brush.radialGradient(
                                                     colors = listOf(
-                                                        FilterColors.primaryColor.copy(alpha = 0.2f),
-                                                        FilterColors.primaryVariant.copy(alpha = 0.1f)
+                                                        FilterColors.goldColor.copy(alpha = 0.2f),
+                                                        FilterColors.darkSurface.copy(alpha = 0.9f)
+                                                    ),
+                                                    radius = premiumGlow * 60f
+                                                )
+                                            )
+                                            .clickable(
+                                                interactionSource = premiumInteraction,
+                                                indication = null
+                                            ) {
+                                                isPremiumPressed = true
+                                                scope.launch {
+                                                    delay(150)
+                                                    isPremiumPressed = false
+                                                }
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_crown),
+                                            contentDescription = "Premium",
+                                            tint = FilterColors.goldColor,
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .scale(premiumGlow)
+                                        )
+                                    }
+
+                                    val settingsInteraction = remember { MutableInteractionSource() }
+                                    var isSettingsPressed by remember { mutableStateOf(false) }
+                                    val settingsScale by animateFloatAsState(
+                                        targetValue = if (isSettingsPressed) 1.1f else 1f,
+                                        animationSpec = spring(
+                                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                                            stiffness = Spring.StiffnessLow
+                                        ),
+                                        label = ""
+                                    )
+                                    
+                                    Box(
+                                        modifier = Modifier
+                                            .size(42.dp)
+                                            .scale(settingsScale)
+                                            .graphicsLayer {
+                                                shadowElevation = 4f
+                                            }
+                                            .clip(CircleShape)
+                                            .background(
+                                                brush = Brush.radialGradient(
+                                                    colors = listOf(
+                                                        Color.White.copy(alpha = 0.2f),
+                                                        FilterColors.darkSurface.copy(alpha = 0.9f)
                                                     )
                                                 )
                                             )
-                                            .padding(horizontal = 12.dp),
+                                            .clickable(
+                                                interactionSource = settingsInteraction,
+                                                indication = null
+                                            ) {
+                                                isSettingsPressed = true
+                                                scope.launch {
+                                                    delay(150)
+                                                    isSettingsPressed = false
+                                                }
+                                            },
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Text(
-                                            text = "Converter",
-                                            fontSize = 20.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = Color.White
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_settings),
+                                            contentDescription = "Settings",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(24.dp)
                                         )
                                     }
                                 }
                             }
 
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp)
+                                    .graphicsLayer {
+                                        shadowElevation = 16f
+                                    },
+                                shape = RoundedCornerShape(24.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = Color.Transparent
+                                ),
+                                border = BorderStroke(
+                                    width = 1.dp,
+                                    brush = Brush.linearGradient(
+                                        colors = listOf(
+                                            Color.White.copy(alpha = 0.3f),
+                                            Color.White.copy(alpha = 0.1f)
+                                        )
+                                    )
+                                )
                             ) {
-                                val premiumInteraction = remember { MutableInteractionSource() }
-                                var isPremiumPressed by remember { mutableStateOf(false) }
-                                val premiumScale by animateFloatAsState(
-                                    targetValue = if (isPremiumPressed) 1.1f else 1f,
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                                        stiffness = Spring.StiffnessLow
-                                    ),
-                                    label = ""
-                                )
-
-                                val premiumGlow by infiniteTransition.animateFloat(
-                                    initialValue = 0.8f,
-                                    targetValue = 1.1f,
-                                    animationSpec = infiniteRepeatable(
-                                        animation = tween(1000), 
-                                        repeatMode = RepeatMode.Reverse
-                                    ),
-                                    label = ""
-                                )
-                                
                                 Box(
                                     modifier = Modifier
-                                        .size(42.dp)
-                                        .scale(premiumScale)
+                                        .fillMaxWidth()
+                                        .background(cardGradient)
+                                        .padding(4.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(20.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        FeaturedActionButton(
+                                            icon = R.drawable.ic_file,
+                                            text = "Convert file",
+                                            description = "Convert documents to any format",
+                                            onClick = {
+                                                viewModel.openFilePicker()
+                                            },
+                                            modifier = Modifier.weight(1f),
+                                            iconTint = FilterColors.primaryColor
+                                        )
+
+                                        HorizontalDivider(
+                                            modifier = Modifier
+                                                .height(100.dp)
+                                                .width(1.dp)
+                                                .background(
+                                                    Brush.verticalGradient(
+                                                        colors = listOf(
+                                                            Color.White.copy(alpha = 0f),
+                                                            Color.White.copy(alpha = 0.3f),
+                                                            Color.White.copy(alpha = 0f)
+                                                        )
+                                                    )
+                                                )
+                                        )
+                                        
+                                        FeaturedActionButton(
+                                            icon = R.drawable.ic_camera,
+                                            text = "Photo to PDF",
+                                            description = "Convert images to PDF documents",
+                                            onClick = {
+                                                viewModel.openGalleryPicker()
+                                            },
+                                            modifier = Modifier.weight(1f),
+                                            iconTint = FilterColors.accentColorHomeScreen
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = if (isScrolled.value) 8.dp else 24.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "RECENT DOCUMENTS",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White.copy(alpha = 0.8f),
+                            letterSpacing = 1.sp
+                        )
+                        
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            RefreshButton(
+                                isLoading = isLoading,
+                                onClick = { viewModel.refreshDocuments() }
+                            )
+
+                            SortButton(
+                                icon = R.drawable.ic_sort_az,
+                                isSelected = currentSortType == SortType.ALPHABETICAL,
+                                onClick = { viewModel.changeSortType(SortType.ALPHABETICAL) }
+                            )
+
+                            SortButton(
+                                icon = if (currentSortType == SortType.DATE) R.drawable.ic_sort_date else R.drawable.ic_sort_size,
+                                isSelected = true,
+                                onClick = {
+                                    if (currentSortType == SortType.DATE) {
+                                        viewModel.changeSortType(SortType.SIZE)
+                                    } else {
+                                        viewModel.changeSortType(SortType.DATE)
+                                    }
+                                }
+                            )
+
+                            SortButton(
+                                icon = if (currentViewType == ViewType.LIST) R.drawable.ic_sort_grid else R.drawable.ic_sort_list,
+                                isSelected = true,
+                                onClick = {
+                                    val newViewType = if (currentViewType == ViewType.LIST) ViewType.GRID else ViewType.LIST
+                                    Log.d("HomeScreen", "Görünüm değiştiriliyor: $currentViewType -> $newViewType")
+                                    viewModel.changeViewType(newViewType)
+                                }
+                            )
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                color = FilterColors.primaryColor,
+                                modifier = Modifier.size(40.dp)
+                            )
+                        } else if (documentsList.isEmpty()) {
+                            val emptyStateAlpha by infiniteTransition.animateFloat(
+                                initialValue = 0.7f,
+                                targetValue = 1f,
+                                animationSpec = infiniteRepeatable(
+                                    animation = tween(2000),
+                                    repeatMode = RepeatMode.Reverse
+                                ),
+                                label = ""
+                            )
+                            
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center,
+                                modifier = Modifier
+                                    .graphicsLayer {
+                                        alpha = emptyStateAlpha
+                                    }
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_empty_file),
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .size(80.dp)
                                         .graphicsLayer {
                                             shadowElevation = 4f
-                                        }
-                                        .clip(CircleShape)
-                                        .background(
-                                            brush = Brush.radialGradient(
-                                                colors = listOf(
-                                                    FilterColors.goldColor.copy(alpha = 0.2f),
-                                                    FilterColors.darkSurface.copy(alpha = 0.9f)
-                                                ),
-                                                radius = premiumGlow * 60f
-                                            )
-                                        )
-                                        .clickable(
-                                            interactionSource = premiumInteraction,
-                                            indication = null
-                                        ) {
-                                            isPremiumPressed = true
-                                            scope.launch {
-                                                delay(150)
-                                                isPremiumPressed = false
-                                            }
                                         },
-                                    contentAlignment = Alignment.Center
+                                    tint = Color.White.copy(alpha = 0.5f)
+                                )
+                                
+                                Spacer(modifier = Modifier.height(20.dp))
+                                
+                                Text(
+                                    text = "No Recent Documents",
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.White.copy(alpha = 0.9f)
+                                )
+                                
+                                Spacer(modifier = Modifier.height(8.dp))
+                                
+                                Text(
+                                    text = "Converted documents will appear here\nfor quick access",
+                                    fontSize = 14.sp,
+                                    color = Color.White.copy(alpha = 0.6f),
+                                    textAlign = TextAlign.Center,
+                                    lineHeight = 20.sp
+                                )
+                                
+                                Spacer(modifier = Modifier.height(20.dp))
+                                
+                                Button(
+                                    onClick = {
+                                        viewModel.openFilePicker()
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = FilterColors.primaryColor
+                                    ),
+                                    shape = RoundedCornerShape(24.dp)
                                 ) {
                                     Icon(
-                                        painter = painterResource(id = R.drawable.ic_crown),
-                                        contentDescription = "Premium",
-                                        tint = FilterColors.goldColor,
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                            .scale(premiumGlow)
+                                        painter = painterResource(id = R.drawable.ic_add),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    
+                                    Text(
+                                        text = "Create New",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium
                                     )
                                 }
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                if (currentViewType == ViewType.LIST) {
+                                    LazyColumn(
+                                        state = listState,
+                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier.fillMaxSize()
+                                    ) {
+                                        items(
+                                            items = documentsList,
+                                            key = { document -> document.id }
+                                        ) { document ->
+                                            DocumentItem(
+                                                document = document,
+                                                onClick = {
+                                                    navController.navigate("${Screen.DocumentViewer.route}/${document.id}")
+                                                }
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    LazyColumn(
+                                        state = listState,
+                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier.fillMaxSize()
+                                    ) {
+                                        items(
+                                            items = documentsList.chunked(2),
+                                            key = { documentGroup -> documentGroup.joinToString { it.id } }
+                                        ) { documentGroup ->
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                documentGroup.forEach { document ->
+                                                    DocumentGridItem(
+                                                        document = document,
+                                                        onClick = {
+                                                            navController.navigate("${Screen.DocumentViewer.route}/${document.id}")
+                                                        },
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                }
+                                                if (documentGroup.size == 1) {
+                                                    Spacer(modifier = Modifier.weight(1f))
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
 
-                                val settingsInteraction = remember { MutableInteractionSource() }
-                                var isSettingsPressed by remember { mutableStateOf(false) }
-                                val settingsScale by animateFloatAsState(
-                                    targetValue = if (isSettingsPressed) 1.1f else 1f,
+                                val fabScale by animateFloatAsState(
+                                    targetValue = if (isScrolled.value) 1.1f else 1f,
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioLowBouncy,
+                                        stiffness = Spring.StiffnessVeryLow
+                                    ),
+                                    label = ""
+                                )
+                                
+                                val fabRotation by animateFloatAsState(
+                                    targetValue = if (isScrolled.value) 45f else 0f,
                                     animationSpec = spring(
                                         dampingRatio = Spring.DampingRatioMediumBouncy,
                                         stiffness = Spring.StiffnessLow
@@ -295,352 +686,28 @@ fun HomeScreen(
                                     label = ""
                                 )
                                 
-                                Box(
+                                FloatingActionButton(
+                                    onClick = { viewModel.openFilePicker() },
                                     modifier = Modifier
-                                        .size(42.dp)
-                                        .scale(settingsScale)
+                                        .align(Alignment.BottomEnd)
+                                        .padding(24.dp)
+                                        .size(56.dp)
                                         .graphicsLayer {
-                                            shadowElevation = 4f
-                                        }
-                                        .clip(CircleShape)
-                                        .background(
-                                            brush = Brush.radialGradient(
-                                                colors = listOf(
-                                                    Color.White.copy(alpha = 0.2f),
-                                                    FilterColors.darkSurface.copy(alpha = 0.9f)
-                                                )
-                                            )
-                                        )
-                                        .clickable(
-                                            interactionSource = settingsInteraction,
-                                            indication = null
-                                        ) {
-                                            isSettingsPressed = true
-                                            scope.launch {
-                                                delay(150)
-                                                isSettingsPressed = false
-                                            }
+                                            val scrollFactor = (1f - minOf(1f, scrollOffset.value / 500f)) * 0.2f
+                                            scaleX = fabScale + scrollFactor
+                                            scaleY = fabScale + scrollFactor
+                                            rotationZ = fabRotation
+                                            shadowElevation = if (isScrolled.value) 16f else 8f
                                         },
-                                    contentAlignment = Alignment.Center
+                                    containerColor = FilterColors.primaryColor,
+                                    contentColor = Color.White
                                 ) {
                                     Icon(
-                                        painter = painterResource(id = R.drawable.ic_settings),
-                                        contentDescription = "Settings",
-                                        tint = Color.White,
+                                        painter = painterResource(id = R.drawable.ic_add),
+                                        contentDescription = "Add document",
                                         modifier = Modifier.size(24.dp)
                                     )
                                 }
-                            }
-                        }
-
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp)
-                                .graphicsLayer {
-                                    shadowElevation = 16f
-                                },
-                            shape = RoundedCornerShape(24.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = Color.Transparent
-                            ),
-                            border = BorderStroke(
-                                width = 1.dp,
-                                brush = Brush.linearGradient(
-                                    colors = listOf(
-                                        Color.White.copy(alpha = 0.3f),
-                                        Color.White.copy(alpha = 0.1f)
-                                    )
-                                )
-                            )
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(cardGradient)
-                                    .padding(4.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(20.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    FeaturedActionButton(
-                                        icon = R.drawable.ic_file,
-                                        text = "Convert file",
-                                        description = "Convert documents to any format",
-                                        onClick = {
-                                            viewModel.openFilePicker()
-                                        },
-                                        modifier = Modifier.weight(1f),
-                                        iconTint = FilterColors.primaryColor
-                                    )
-
-                                    HorizontalDivider(
-                                        modifier = Modifier
-                                            .height(100.dp)
-                                            .width(1.dp)
-                                            .background(
-                                                Brush.verticalGradient(
-                                                    colors = listOf(
-                                                        Color.White.copy(alpha = 0f),
-                                                        Color.White.copy(alpha = 0.3f),
-                                                        Color.White.copy(alpha = 0f)
-                                                    )
-                                                )
-                                            )
-                                    )
-                                    
-                                    FeaturedActionButton(
-                                        icon = R.drawable.ic_camera,
-                                        text = "Photo to PDF",
-                                        description = "Convert images to PDF documents",
-                                        onClick = {
-                                            viewModel.openGalleryPicker()
-                                        },
-                                        modifier = Modifier.weight(1f),
-                                        iconTint = FilterColors.accentColorHomeScreen
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = if (isScrolled.value) 8.dp else 24.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "RECENT DOCUMENTS",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White.copy(alpha = 0.8f),
-                        letterSpacing = 1.sp
-                    )
-                    
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        RefreshButton(
-                            isLoading = isLoading,
-                            onClick = { viewModel.refreshDocuments() }
-                        )
-
-                        SortButton(
-                            icon = R.drawable.ic_sort_az,
-                            isSelected = currentSortType == SortType.ALPHABETICAL,
-                            onClick = { viewModel.changeSortType(SortType.ALPHABETICAL) }
-                        )
-
-                        SortButton(
-                            icon = if (currentSortType == SortType.DATE) R.drawable.ic_sort_date else R.drawable.ic_sort_size,
-                            isSelected = true,
-                            onClick = {
-                                if (currentSortType == SortType.DATE) {
-                                    viewModel.changeSortType(SortType.SIZE)
-                                } else {
-                                    viewModel.changeSortType(SortType.DATE)
-                                }
-                            }
-                        )
-
-                        SortButton(
-                            icon = if (currentViewType == ViewType.LIST) R.drawable.ic_sort_grid else R.drawable.ic_sort_list,
-                            isSelected = true,
-                            onClick = {
-                                val newViewType = if (currentViewType == ViewType.LIST) ViewType.GRID else ViewType.LIST
-                                Log.d("HomeScreen", "Görünüm değiştiriliyor: $currentViewType -> $newViewType")
-                                viewModel.changeViewType(newViewType)
-                            }
-                        )
-                    }
-                }
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            color = FilterColors.primaryColor,
-                            modifier = Modifier.size(40.dp)
-                        )
-                    } else if (documentsList.isEmpty()) {
-                        val emptyStateAlpha by infiniteTransition.animateFloat(
-                            initialValue = 0.7f,
-                            targetValue = 1f,
-                            animationSpec = infiniteRepeatable(
-                                animation = tween(2000),
-                                repeatMode = RepeatMode.Reverse
-                            ),
-                            label = ""
-                        )
-                        
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                            modifier = Modifier
-                                .graphicsLayer {
-                                    alpha = emptyStateAlpha
-                                }
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_empty_file),
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(80.dp)
-                                    .graphicsLayer {
-                                        shadowElevation = 4f
-                                    },
-                                tint = Color.White.copy(alpha = 0.5f)
-                            )
-                            
-                            Spacer(modifier = Modifier.height(20.dp))
-                            
-                            Text(
-                                text = "No Recent Documents",
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.White.copy(alpha = 0.9f)
-                            )
-                            
-                            Spacer(modifier = Modifier.height(8.dp))
-                            
-                            Text(
-                                text = "Converted documents will appear here\nfor quick access",
-                                fontSize = 14.sp,
-                                color = Color.White.copy(alpha = 0.6f),
-                                textAlign = TextAlign.Center,
-                                lineHeight = 20.sp
-                            )
-                            
-                            Spacer(modifier = Modifier.height(20.dp))
-                            
-                            Button(
-                                onClick = {
-                                    viewModel.openFilePicker()
-                                },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = FilterColors.primaryColor
-                                ),
-                                shape = RoundedCornerShape(24.dp)
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_add),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                
-                                Spacer(modifier = Modifier.width(8.dp))
-                                
-                                Text(
-                                    text = "Create New",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-                    } else {
-                        Box(
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            if (currentViewType == ViewType.LIST) {
-                                LazyColumn(
-                                    state = listState,
-                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                                    modifier = Modifier.fillMaxSize()
-                                ) {
-                                    items(
-                                        items = documentsList,
-                                        key = { document -> document.id }
-                                    ) { document ->
-                                        DocumentItem(
-                                            document = document,
-                                            onClick = {
-                                                navController.navigate("${Screen.DocumentViewer.route}/${document.id}")
-                                            }
-                                        )
-                                    }
-                                }
-                            } else {
-                                LazyColumn(
-                                    state = listState,
-                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                                    modifier = Modifier.fillMaxSize()
-                                ) {
-                                    items(
-                                        items = documentsList.chunked(2),
-                                        key = { documentGroup -> documentGroup.joinToString { it.id } }
-                                    ) { documentGroup ->
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            documentGroup.forEach { document ->
-                                                DocumentGridItem(
-                                                    document = document,
-                                                    onClick = {
-                                                        navController.navigate("${Screen.DocumentViewer.route}/${document.id}")
-                                                    },
-                                                    modifier = Modifier.weight(1f)
-                                                )
-                                            }
-                                            if (documentGroup.size == 1) {
-                                                Spacer(modifier = Modifier.weight(1f))
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            val fabScale by animateFloatAsState(
-                                targetValue = if (isScrolled.value) 1.1f else 1f,
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioLowBouncy,
-                                    stiffness = Spring.StiffnessVeryLow
-                                ),
-                                label = ""
-                            )
-                            
-                            val fabRotation by animateFloatAsState(
-                                targetValue = if (isScrolled.value) 45f else 0f,
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                    stiffness = Spring.StiffnessLow
-                                ),
-                                label = ""
-                            )
-                            
-                            FloatingActionButton(
-                                onClick = { viewModel.openFilePicker() },
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(24.dp)
-                                    .size(56.dp)
-                                    .graphicsLayer {
-                                        val scrollFactor = (1f - minOf(1f, scrollOffset.value / 500f)) * 0.2f
-                                        scaleX = fabScale + scrollFactor
-                                        scaleY = fabScale + scrollFactor
-                                        rotationZ = fabRotation
-                                        shadowElevation = if (isScrolled.value) 16f else 8f
-                                    },
-                                containerColor = FilterColors.primaryColor,
-                                contentColor = Color.White
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_add),
-                                    contentDescription = "Add document",
-                                    modifier = Modifier.size(24.dp)
-                                )
                             }
                         }
                     }
@@ -1014,5 +1081,317 @@ private object SimpleDateFormatter {
     private val formatter by lazy { SimpleDateFormat("MMM dd", Locale.getDefault()) }
     fun format(date: Date): String {
         return formatter.format(date)
+    }
+}
+
+@Composable
+private fun StoragePermissionRequest(
+    onRequestPermission: () -> Unit
+) {
+    val primaryColor = FilterColors.primaryColor
+    
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(32.dp)
+        ) {
+            val infiniteTransition = rememberInfiniteTransition(label = "")
+            val scale by infiniteTransition.animateFloat(
+                initialValue = 0.9f,
+                targetValue = 1.1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(2000),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = ""
+            )
+            
+            Box(
+                modifier = Modifier
+                    .size(140.dp)
+                    .padding(8.dp)
+                    .scale(scale)
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                primaryColor.copy(alpha = 0.1f),
+                                Color.Transparent
+                            )
+                        ),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(CircleShape)
+                        .background(
+                            color = primaryColor.copy(alpha = 0.08f)
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = primaryColor.copy(alpha = 0.2f),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Warning,
+                        contentDescription = null,
+                        tint = primaryColor,
+                        modifier = Modifier.size(52.dp)
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Text(
+                text = "Storage Permission Required",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                textAlign = TextAlign.Center
+            )
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            Text(
+                text = "We need storage permission to access and convert your files.",
+                fontSize = 16.sp,
+                color = Color.White.copy(alpha = 0.7f),
+                textAlign = TextAlign.Center
+            )
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Button(
+                onClick = onRequestPermission,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = primaryColor
+                ),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .padding(horizontal = 32.dp)
+                    .fillMaxWidth()
+            ) {
+                Text(
+                    text = "Grant Permission",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.White
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PermissionDeniedDialog(
+    onGoToSettings: () -> Unit,
+    onClose: () -> Unit
+) {
+    val primaryColor = FilterColors.primaryColor
+    val errorColor = Color(0xFFFF5A5A)
+    val backgroundColor = Color(0xFF1E1E1E)
+
+    var isVisible by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0.95f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = ""
+    )
+    
+    val alpha by animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = tween(300),
+        label = ""
+    )
+
+    val infiniteTransition = rememberInfiniteTransition(label = "")
+    val warningScale by infiniteTransition.animateFloat(
+        initialValue = 0.9f,
+        targetValue = 1.1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(700),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = ""
+    )
+
+    val glowAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.2f,
+        targetValue = 0.5f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = ""
+    )
+
+    LaunchedEffect(Unit) {
+        isVisible = true
+    }
+
+    Dialog(
+        onDismissRequest = onClose,
+        properties = DialogProperties(
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true
+        )
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight()
+                .graphicsLayer { 
+                    this.scaleX = scale
+                    this.scaleY = scale
+                    this.alpha = alpha
+                },
+            shape = RoundedCornerShape(28.dp),
+            color = Color.Transparent
+        ) {
+            Box(
+                modifier = Modifier
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                backgroundColor,
+                                Color(0xFF121212)
+                            )
+                        ),
+                        shape = RoundedCornerShape(28.dp)
+                    )
+                    .border(
+                        width = 1.dp,
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = 0.15f),
+                                Color.White.copy(alpha = 0.05f)
+                            )
+                        ),
+                        shape = RoundedCornerShape(28.dp)
+                    )
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(80.dp)
+                            .background(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(
+                                        errorColor.copy(alpha = glowAlpha),
+                                        Color.Transparent
+                                    )
+                                ),
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(60.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    color = backgroundColor
+                                )
+                                .border(
+                                    width = 1.dp,
+                                    color = errorColor.copy(alpha = 0.3f),
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = errorColor,
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .scale(warningScale)
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Text(
+                        text = "Permission Required",
+                        color = Color.White,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "We need storage permission to access documents for conversion. You can grant it in app settings.",
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 16.sp,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 24.sp
+                    )
+                    
+                    Spacer(modifier = Modifier.height(28.dp))
+
+                    Button(
+                        onClick = onGoToSettings,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = primaryColor
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 4.dp
+                        )
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_settings),
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        
+                        Spacer(modifier = Modifier.width(12.dp))
+                        
+                        Text(
+                            text = "Open Settings",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    TextButton(
+                        onClick = onClose,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text(
+                            text = "Not Now",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.White.copy(alpha = 0.8f)
+                        )
+                    }
+                }
+            }
+        }
     }
 }
