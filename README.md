@@ -1,67 +1,70 @@
 # PDFCrafterTemplate
 
 <p align="center">
-  <img src="app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png" width="120" alt="SmartDocsConvert Logo"/>
+  <img src="app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png" width="120" alt="PDFCrafterTemplate Logo"/>
 </p>
 
 <p align="center">
-  <b>A powerful document conversion and management tool for Android</b>
+  <b>Modern Document Conversion and Management Application</b>
 </p>
 
 <p align="center">
   <a href="#features">Features</a> •
-  <a href="#screenshots">Screenshots</a> •
+  <a href="#technologies">Technologies</a> •
   <a href="#architecture">Architecture</a> •
-  <a href="#technologies-used">Technologies</a> •
-  <a href="#getting-started">Getting Started</a> •
-  <a href="#license">License</a>
+  <a href="#installation">Installation</a> •
+  <a href="#project-structure">Project Structure</a> •
+  <a href="#contributing">Contributing</a>
 </p>
 
 ## Features
 
-PDFCrafterTemplate is a modern Android application designed to handle document conversion tasks with ease:
+PDFCrafterTemplate is a modern Android application that simplifies document conversion and management:
 
-- **Document Conversion**: Convert documents to various formats
-- **Image to PDF**: Turn images from gallery or camera into PDF documents
-- **Modern UI**: Beautiful and responsive interface built with Jetpack Compose
-- **Document Management**: Easy access to recently converted documents
-- **AI Chat**: Get help with your documents using AI assistance
+- **Document Conversion**: Convert between different document types
+- **Image to PDF**: Convert images from gallery or camera to PDF documents
+- **PDF Editing**: Merge, split, and edit PDF documents
+- **Document Management**: Easy access and editing of converted documents
+- **Modern Interface**: Sleek and responsive user interface built with Jetpack Compose
+- **Photo Filtering**: Filter and edit images before converting to PDF
 
-## Screenshots
+## Technologies
+
+The application uses the following modern Android development technologies:
+
+- [Kotlin](https://kotlinlang.org/) - Modern, concise programming language for Android
+- [Jetpack Compose](https://developer.android.com/jetpack/compose) - Declarative UI toolkit
+- [Hilt](https://developer.android.com/training/dependency-injection/hilt-android) - Dependency injection
+- [Coroutines & Flow](https://kotlinlang.org/docs/coroutines-overview.html) - Asynchronous programming
+- [WorkManager](https://developer.android.com/topic/libraries/architecture/workmanager) - Background processing
+- [Room](https://developer.android.com/jetpack/androidx/releases/room) - Database management
+- [Navigation Component](https://developer.android.com/guide/navigation) - In-app navigation
+- [iText7](https://itextpdf.com/en/products/itext-7) - PDF processing and conversion
 
 ## Architecture
 
-This application is built with modern Android development practices:
+This application is built with modern Android development principles:
 
-- **MVVM Architecture**: Clean separation of UI, business logic and data
+- **MVVM Architecture**: Clean separation between UI, business logic, and data layers
 - **Repository Pattern**: Centralized data management
-- **Dependency Injection**: Using Hilt for clean, testable code
-- **Navigation Component**: Single-activity architecture with Compose Navigation
-- **Jetpack Compose**: Declarative UI toolkit for building native Android UI
+- **Dependency Injection**: Using Hilt for testable and maintainable code
+- **Single Activity Architecture**: Single activity with Compose Navigation
+- **Use Cases**: Business logic organized into use cases
 
-## Technologies Used
+## Installation
 
-- [Kotlin](https://kotlinlang.org/) - Modern, concise programming language for Android
-- [Jetpack Compose](https://developer.android.com/jetpack/compose) - Modern UI toolkit
-- [Hilt](https://developer.android.com/training/dependency-injection/hilt-android) - Dependency injection library
-- [Coroutines & Flow](https://kotlinlang.org/docs/coroutines-overview.html) - Asynchronous programming
-- [WorkManager](https://developer.android.com/topic/libraries/architecture/workmanager) - Background processing
-- [Room](https://developer.android.com/jetpack/androidx/releases/room) - Database persistence
-- [Navigation Component](https://developer.android.com/guide/navigation) - In-app navigation
+### Requirements
 
-## Getting Started
-
-### Prerequisites
-
-- Android Studio Arctic Fox (2020.3.1) or newer
+- Android Studio Flamingo (2022.2.1) or newer
 - Minimum SDK 24 (Android 7.0 Nougat)
-- Gradle version 7.0+
+- Gradle version 8.0+
+- JDK 11
 
-### Installation
+### Installation Steps
 
-1. Clone the repository
+1. Clone the project
    ```bash
-   git clone https://github.com/yourusername/SmartDocsConvert.git
+   git clone https://github.com/yourusername/PDFCrafterTemplate.git
    ```
 
 2. Open the project in Android Studio
@@ -75,32 +78,39 @@ This application is built with modern Android development practices:
 ```
 app/
 ├── src/main/
-│   ├── java/com/example/smartdocsconvert/
+│   ├── java/com/example/pdfcraftertemplate/
+│   │   ├── app/             # Application class
 │   │   ├── data/            # Data sources, repositories, models
+│   │   │   ├── model/       # Data models
+│   │   │   └── repository/  # Repositories
 │   │   ├── di/              # Dependency injection modules
-│   │   ├── ui/              # UI components and screens
+│   │   ├── domain/          # Business logic and use cases
+│   │   │   └── usecase/     # Use cases
+│   │   ├── ui/              # UI components
+│   │   │   ├── components/  # Reusable components
 │   │   │   ├── navigation/  # Navigation components
-│   │   │   ├── screens/     # App screens
-│   │   │   └── theme/       # Theme definitions
+│   │   │   ├── screens/     # Application screens
+│   │   │   ├── theme/       # Theme definitions
+│   │   │   └── viewmodel/   # ViewModels
 │   │   ├── util/            # Utility classes
 │   │   └── MainActivity.kt  # Main activity
 │   └── res/                 # Resources
-└── build.gradle.kts         # App level build configuration
+└── build.gradle.kts         # App level configuration
 ```
 
-## Roadmap
+## Upcoming Features
 
 - [ ] Cloud storage integration
 - [ ] Batch conversion features
-- [ ] Document editing capabilities
-- [ ] AI-powered document analysis
-- [ ] Document scanner enhancements
+- [ ] Advanced document editing capabilities
+- [ ] OCR (Optical Character Recognition) support
+- [ ] Document scanning enhancements
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Your contributions are welcome! Please feel free to submit a Pull Request.
 
-1. Fork the repository
+1. Fork the project
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the branch (`git push origin feature/AmazingFeature`)
@@ -110,7 +120,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Acknowledgments
+## Acknowledgements
 
-- [Document format libraries and credits to be added]
-- Icons by [Material Design](https://material.io/resources/icons/) 
+- Icons provided by [Material Design](https://material.io/resources/icons/)
+- PDF processing using [iText7](https://itextpdf.com/en/products/itext-7) library
