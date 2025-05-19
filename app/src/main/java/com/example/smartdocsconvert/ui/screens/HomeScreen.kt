@@ -11,6 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -45,7 +46,7 @@ import androidx.navigation.NavController
 import com.example.smartdocsconvert.R
 import com.example.smartdocsconvert.data.model.DocumentModel
 import com.example.smartdocsconvert.ui.navigation.Screen
-import com.example.smartdocsconvert.ui.theme.FilterColors
+import com.example.smartdocsconvert.ui.theme.extendedColors
 import com.example.smartdocsconvert.ui.viewmodel.FileViewModel
 import com.example.smartdocsconvert.ui.viewmodel.SortType
 import com.example.smartdocsconvert.ui.viewmodel.ViewType
@@ -84,7 +85,7 @@ fun HomeScreen(
 
     var hasStoragePermission by remember { mutableStateOf(permissionHelper.hasStoragePermissions()) }
     var showPermissionRationale by remember { mutableStateOf(false) }
-    var permissionRequestCount by remember { mutableStateOf(0) }
+    var permissionRequestCount by remember { mutableIntStateOf(0) }
 
     val filePickerRequested by viewModel.filePickerRequested.collectAsState()
     val galleryPickerRequested by viewModel.galleryPickerRequested.collectAsState()
@@ -96,7 +97,7 @@ fun HomeScreen(
         permissionRequestCount++
         hasStoragePermission = allGranted
 
-        if (!allGranted && permissionRequestCount > 1) {
+        if (allGranted.not() && permissionRequestCount > 1) {
             showPermissionRationale = true
         }
     }
@@ -139,16 +140,27 @@ fun HomeScreen(
     )
     
     val cardGradient = Brush.linearGradient(
-        colors = listOf(
-            FilterColors.cardColor,
-            Color(0xFF331515),
-            Color(0xFF3A1111)
-        )
+        colors = if (isSystemInDarkTheme()) {
+            listOf(
+                MaterialTheme.extendedColors.cardRed,
+                Color(0xFF331515),
+                Color(0xFF3A1111)
+            )
+        } else {
+            listOf(
+                MaterialTheme.extendedColors.cardRed,
+                MaterialTheme.extendedColors.cardRed.copy(alpha = 0.9f),
+                MaterialTheme.extendedColors.cardRed.copy(alpha = 0.8f)
+            )
+        }
     )
 
     LaunchedEffect(Unit) {
         isVisible = true
     }
+
+    // Text color based on theme
+    val textColor = if (isSystemInDarkTheme()) Color.White else Color(0xFF121212)
 
     if (showPermissionRationale) {
         PermissionDeniedDialog(
@@ -176,7 +188,7 @@ fun HomeScreen(
                 }
                 .background(
                     brush = Brush.radialGradient(
-                        colors = listOf(FilterColors.primaryColor, Color.Transparent),
+                        colors = listOf(MaterialTheme.colorScheme.primary, Color.Transparent),
                         radius = 300f
                     ),
                     shape = CircleShape
@@ -193,7 +205,7 @@ fun HomeScreen(
                 }
                 .background(
                     brush = Brush.radialGradient(
-                        colors = listOf(FilterColors.accentColorHomeScreen, Color.Transparent),
+                        colors = listOf(MaterialTheme.extendedColors.accentTeal, Color.Transparent),
                         radius = 200f
                     ),
                     shape = CircleShape
@@ -240,7 +252,7 @@ fun HomeScreen(
                                         text = "PDF",
                                         fontSize = 28.sp,
                                         fontWeight = FontWeight.ExtraBold,
-                                        color = Color.White,
+                                        color = textColor,
                                         modifier = Modifier
                                             .graphicsLayer {
                                                 shadowElevation = 8f
@@ -258,7 +270,10 @@ fun HomeScreen(
                                         border = BorderStroke(
                                             width = 1.dp,
                                             brush = Brush.linearGradient(
-                                                colors = listOf(FilterColors.primaryColor, FilterColors.primaryVariant)
+                                                colors = listOf(
+                                                    MaterialTheme.colorScheme.primary,
+                                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                                                )
                                             )
                                         )
                                     ) {
@@ -268,8 +283,8 @@ fun HomeScreen(
                                                 .background(
                                                     brush = Brush.linearGradient(
                                                         colors = listOf(
-                                                            FilterColors.primaryColor.copy(alpha = 0.2f),
-                                                            FilterColors.primaryVariant.copy(alpha = 0.1f)
+                                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
                                                         )
                                                     )
                                                 )
@@ -322,8 +337,8 @@ fun HomeScreen(
                                             .background(
                                                 brush = Brush.radialGradient(
                                                     colors = listOf(
-                                                        FilterColors.goldColor.copy(alpha = 0.2f),
-                                                        FilterColors.darkSurface.copy(alpha = 0.9f)
+                                                        MaterialTheme.extendedColors.goldColor.copy(alpha = 0.2f),
+                                                        MaterialTheme.extendedColors.surfaceRed.copy(alpha = 0.9f)
                                                     ),
                                                     radius = premiumGlow * 60f
                                                 )
@@ -343,7 +358,7 @@ fun HomeScreen(
                                         Icon(
                                             painter = painterResource(id = R.drawable.ic_crown),
                                             contentDescription = "Premium",
-                                            tint = FilterColors.goldColor,
+                                            tint = MaterialTheme.extendedColors.goldColor,
                                             modifier = Modifier
                                                 .size(24.dp)
                                                 .scale(premiumGlow)
@@ -373,7 +388,7 @@ fun HomeScreen(
                                                 brush = Brush.radialGradient(
                                                     colors = listOf(
                                                         Color.White.copy(alpha = 0.2f),
-                                                        FilterColors.darkSurface.copy(alpha = 0.9f)
+                                                        MaterialTheme.extendedColors.surfaceRed.copy(alpha = 0.9f)
                                                     )
                                                 )
                                             )
@@ -440,7 +455,7 @@ fun HomeScreen(
                                                 viewModel.openFilePicker()
                                             },
                                             modifier = Modifier.weight(1f),
-                                            iconTint = FilterColors.primaryColor
+                                            iconTint = MaterialTheme.colorScheme.primary
                                         )
 
                                         HorizontalDivider(
@@ -466,7 +481,7 @@ fun HomeScreen(
                                                 viewModel.openGalleryPicker()
                                             },
                                             modifier = Modifier.weight(1f),
-                                            iconTint = FilterColors.accentColorHomeScreen
+                                            iconTint = MaterialTheme.extendedColors.accentTeal
                                         )
                                     }
                                 }
@@ -485,7 +500,7 @@ fun HomeScreen(
                             text = "RECENT DOCUMENTS",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White.copy(alpha = 0.8f),
+                            color = textColor.copy(alpha = 0.8f),
                             letterSpacing = 1.sp
                         )
                         
@@ -535,7 +550,7 @@ fun HomeScreen(
                     ) {
                         if (isLoading) {
                             CircularProgressIndicator(
-                                color = FilterColors.primaryColor,
+                                color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(40.dp)
                             )
                         } else if (documentsList.isEmpty()) {
@@ -565,7 +580,7 @@ fun HomeScreen(
                                         .graphicsLayer {
                                             shadowElevation = 4f
                                         },
-                                    tint = Color.White.copy(alpha = 0.5f)
+                                    tint = textColor.copy(alpha = 0.5f)
                                 )
                                 
                                 Spacer(modifier = Modifier.height(20.dp))
@@ -574,7 +589,7 @@ fun HomeScreen(
                                     text = "No Recent Documents",
                                     fontSize = 20.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color.White.copy(alpha = 0.9f)
+                                    color = textColor.copy(alpha = 0.9f)
                                 )
                                 
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -582,7 +597,7 @@ fun HomeScreen(
                                 Text(
                                     text = "Converted documents will appear here\nfor quick access",
                                     fontSize = 14.sp,
-                                    color = Color.White.copy(alpha = 0.6f),
+                                    color = textColor.copy(alpha = 0.6f),
                                     textAlign = TextAlign.Center,
                                     lineHeight = 20.sp
                                 )
@@ -594,7 +609,7 @@ fun HomeScreen(
                                         viewModel.openFilePicker()
                                     },
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = FilterColors.primaryColor
+                                        containerColor = MaterialTheme.colorScheme.primary
                                     ),
                                     shape = RoundedCornerShape(24.dp)
                                 ) {
@@ -699,7 +714,7 @@ fun HomeScreen(
                                             rotationZ = fabRotation
                                             shadowElevation = if (isScrolled.value) 16f else 8f
                                         },
-                                    containerColor = FilterColors.primaryColor,
+                                    containerColor = MaterialTheme.colorScheme.primary,
                                     contentColor = Color.White
                                 ) {
                                     Icon(
@@ -745,6 +760,8 @@ private fun FeaturedActionButton(
         label = ""
     )
 
+    val textColor = if (isSystemInDarkTheme()) Color.White else Color(0xFF121212)
+
     Box(
         modifier = modifier
             .scale(scale)
@@ -788,7 +805,7 @@ private fun FeaturedActionButton(
                 text = text,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color.White
+                color = textColor
             )
             
             Spacer(modifier = Modifier.height(4.dp))
@@ -796,7 +813,7 @@ private fun FeaturedActionButton(
             Text(
                 text = description,
                 fontSize = 12.sp,
-                color = Color.White.copy(alpha = 0.6f),
+                color = textColor.copy(alpha = 0.6f),
                 textAlign = TextAlign.Center
             )
         }
@@ -910,7 +927,7 @@ private fun DocumentItem(
         ),
         border = BorderStroke(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+            color = MaterialTheme.colorScheme.outline
         )
     ) {
         Row(
@@ -1000,7 +1017,7 @@ private fun DocumentGridItem(
         ),
         border = BorderStroke(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+            color = MaterialTheme.colorScheme.outline
         )
     ) {
         Column(
@@ -1088,7 +1105,8 @@ private object SimpleDateFormatter {
 private fun StoragePermissionRequest(
     onRequestPermission: () -> Unit
 ) {
-    val primaryColor = FilterColors.primaryColor
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val textColor = if (isSystemInDarkTheme()) Color.White else Color(0xFF000000)
     
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -1154,7 +1172,7 @@ private fun StoragePermissionRequest(
                 text = "Storage Permission Required",
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White,
+                color = textColor,
                 textAlign = TextAlign.Center
             )
             
@@ -1163,7 +1181,7 @@ private fun StoragePermissionRequest(
             Text(
                 text = "We need storage permission to access and convert your files.",
                 fontSize = 16.sp,
-                color = Color.White.copy(alpha = 0.7f),
+                color = textColor.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center
             )
             
@@ -1195,9 +1213,10 @@ private fun PermissionDeniedDialog(
     onGoToSettings: () -> Unit,
     onClose: () -> Unit
 ) {
-    val primaryColor = FilterColors.primaryColor
+    val primaryColor = MaterialTheme.colorScheme.primary
     val errorColor = Color(0xFFFF5A5A)
-    val backgroundColor = Color(0xFF1E1E1E)
+    val backgroundColor = if (isSystemInDarkTheme()) Color(0xFF1E1E1E) else Color(0xFFF8F9FF)
+    val textColor = if (isSystemInDarkTheme()) Color.White else Color(0xFF121212)
 
     var isVisible by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
@@ -1265,7 +1284,7 @@ private fun PermissionDeniedDialog(
                         brush = Brush.verticalGradient(
                             colors = listOf(
                                 backgroundColor,
-                                Color(0xFF121212)
+                                if (isSystemInDarkTheme()) Color(0xFF121212) else Color(0xFFEDF0FF)
                             )
                         ),
                         shape = RoundedCornerShape(28.dp)
@@ -1274,8 +1293,14 @@ private fun PermissionDeniedDialog(
                         width = 1.dp,
                         brush = Brush.linearGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = 0.15f),
-                                Color.White.copy(alpha = 0.05f)
+                                if (isSystemInDarkTheme()) 
+                                    Color.White.copy(alpha = 0.15f)
+                                else 
+                                    primaryColor.copy(alpha = 0.2f),
+                                if (isSystemInDarkTheme())
+                                    Color.White.copy(alpha = 0.05f)
+                                else
+                                    primaryColor.copy(alpha = 0.1f)
                             )
                         ),
                         shape = RoundedCornerShape(28.dp)
@@ -1328,7 +1353,7 @@ private fun PermissionDeniedDialog(
 
                     Text(
                         text = "Permission Required",
-                        color = Color.White,
+                        color = textColor,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
@@ -1338,7 +1363,7 @@ private fun PermissionDeniedDialog(
 
                     Text(
                         text = "We need storage permission to access documents for conversion. You can grant it in app settings.",
-                        color = Color.White.copy(alpha = 0.7f),
+                        color = textColor.copy(alpha = 0.7f),
                         fontSize = 16.sp,
                         textAlign = TextAlign.Center,
                         lineHeight = 24.sp
@@ -1387,7 +1412,7 @@ private fun PermissionDeniedDialog(
                             text = "Not Now",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color.White.copy(alpha = 0.8f)
+                            color = textColor.copy(alpha = 0.8f)
                         )
                     }
                 }

@@ -1,5 +1,7 @@
 package com.example.smartdocsconvert.ui.screens.file
 
+import android.app.AlertDialog
+import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
@@ -53,6 +55,12 @@ import com.example.smartdocsconvert.di.PermissionHelperEntryPoint
 import dagger.hilt.android.EntryPointAccessors
 import java.io.File
 import kotlinx.coroutines.launch
+import android.content.Intent
+import android.net.Uri
+import android.webkit.MimeTypeMap
+import android.widget.Toast
+import androidx.compose.foundation.combinedClickable
+import androidx.core.content.FileProvider
 
 @Composable
 fun ConvertFileScreen(
@@ -901,6 +909,7 @@ private fun EnhancedFilesList(
 /**
  * Modern file item with improved design and animations
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ModernFileItem(
     file: File,
@@ -914,6 +923,7 @@ private fun ModernFileItem(
     var isPressed by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
     
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.98f else 1f,
@@ -976,7 +986,7 @@ private fun ModernFileItem(
     ) {
         Row(
             modifier = Modifier
-                .clickable(
+                .combinedClickable(
                     interactionSource = interactionSource,
                     indication = rememberRipple(color = Color.White.copy(alpha = 0.1f)),
                     onClick = { 
@@ -987,6 +997,10 @@ private fun ModernFileItem(
                            delay(150)
                             isPressed = false
                         }
+                    },
+                    onLongClick = {
+                        // Dosyayı açmak için "Şununla Aç" seçeneğini göster
+                        openDocumentWithChooser(context, file)
                     }
                 )
                 .padding(16.dp),
@@ -1009,7 +1023,7 @@ private fun ModernFileItem(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    painter = painterResource(id = fileIcon),
+                    painter = painterResource(id = file.getDocumentIcon()),
                     contentDescription = "File type",
                     tint = fileColor,
                     modifier = Modifier.size(28.dp)
@@ -1092,9 +1106,114 @@ private fun ModernFileItem(
     }
 }
 
-/**
- * Improved bottom action buttons
- */
+private fun File.getDocumentIcon(): Int {
+    return when (extension.lowercase()) {
+        "pdf" -> R.drawable.ic_pdf
+        "doc", "docx", "rtf", "odt" -> R.drawable.ic_doc
+        "xls", "xlsx", "csv", "ods" -> R.drawable.ic_xls
+        "ppt", "pptx", "pps", "odp" -> R.drawable.ic_ppt
+        "txt", "md", "log", "json", "xml", "html", "htm", "css", "js" -> R.drawable.ic_txt
+        "jpg", "jpeg", "png", "bmp", "tiff", "tif", "webp", "gif", "svg", "ico" -> R.drawable.ic_image
+        else -> R.drawable.ic_file
+    }
+}
+
+private fun openDocumentWithChooser(context: Context, file: File) {
+    try {
+        // FileProvider URI oluştur
+        val fileUri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.provider",
+            file
+        )
+
+        // Dosya uzantısını al ve MIME türünü belirle
+        val extension = file.extension.lowercase()
+        val mimeType = getMimeType(extension)
+
+        // VIEW intent oluştur
+        val viewIntent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(fileUri, mimeType)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+
+        // Kullanıcıya "Şununla Aç" seçeneğini sunan Intent
+        val chooserIntent = Intent.createChooser(
+            viewIntent,
+            "Dosyayı şununla aç"
+        )
+
+        // Intent'i başlat
+        if (viewIntent.resolveActivity(context.packageManager) != null) {
+            context.startActivity(chooserIntent)
+        } else {
+            // Uygun bir uygulama bulunamadıysa, kullanıcıya göster ve Play Store'a yönlendir
+            showNoAppFoundDialog(context, mimeType)
+        }
+    } catch (e: Exception) {
+        Toast.makeText(
+            context,
+            "Dosya açılamadı: ${e.message}",
+            Toast.LENGTH_LONG
+        ).show()
+    }
+}
+
+
+private fun showNoAppFoundDialog(context: Context, mimeType: String) {
+    val alertDialog = AlertDialog.Builder(context)
+        .setTitle("Uygun Uygulama Bulunamadı")
+        .setMessage("Bu dosyayı açabilecek bir uygulama bulunamadı. Play Store'dan uygun bir uygulama yüklemek ister misiniz?")
+        .setPositiveButton("Evet") { _, _ ->
+            val marketIntent = Intent(Intent.ACTION_VIEW).apply {
+                data = Uri.parse("market://search?q=${mimeType.replace("/", " ")} görüntüleyici")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            
+            if (marketIntent.resolveActivity(context.packageManager) != null) {
+                context.startActivity(marketIntent)
+            } else {
+                Toast.makeText(
+                    context,
+                    "Google Play Store bulunamadı",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+        .setNegativeButton("Hayır", null)
+        .create()
+    
+    alertDialog.show()
+}
+
+
+private fun getMimeType(extension: String): String {
+    return when (extension) {
+        "pdf" -> "application/pdf"
+        "doc", "docx" -> "application/msword"
+        "xls", "xlsx" -> "application/vnd.ms-excel"
+        "ppt", "pptx" -> "application/vnd.ms-powerpoint"
+        "txt" -> "text/plain"
+        "jpg", "jpeg" -> "image/jpeg"
+        "png" -> "image/png"
+        "gif" -> "image/gif"
+        "webp" -> "image/webp"
+        "svg" -> "image/svg+xml"
+        "html", "htm" -> "text/html"
+        "css" -> "text/css"
+        "js" -> "application/javascript"
+        "json" -> "application/json"
+        "xml" -> "application/xml"
+        "csv" -> "text/csv"
+        "rtf" -> "application/rtf"
+        "odt" -> "application/vnd.oasis.opendocument.text"
+        "ods" -> "application/vnd.oasis.opendocument.spreadsheet"
+        "odp" -> "application/vnd.oasis.opendocument.presentation"
+        else -> MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: "*/*"
+    }
+}
+
+
 @Composable
 private fun ImprovedBottomButtons(
     selectedFiles: Set<File>,
@@ -1664,6 +1783,39 @@ private fun FileListContent(
             primaryColor = primaryColor,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
         )
+        
+        // Kullanıcıya uzun basış ipucu
+        AnimatedVisibility(visible = files.isNotEmpty()) {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFF333333)
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_info),
+                        contentDescription = null,
+                        tint = primaryColor,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "İpucu: Dosyayı seçmek için tıklayın, dosyayı açmak için uzun basın",
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
         
         LazyColumn(
             modifier = Modifier.fillMaxSize(),

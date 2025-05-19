@@ -38,20 +38,20 @@ data class DocumentModel(
         }
     }
     
-    // Get actual file object
-    fun toFile(): File {
-        return File(path)
-    }
-    
     // Döküman türüne göre ikon kaynağını döndür
     fun getDocumentIcon(): Int {
         return when (type.lowercase()) {
+            // Doküman formatları
             "pdf" -> R.drawable.ic_pdf
-            "doc", "docx" -> R.drawable.ic_doc
-            "xls", "xlsx" -> R.drawable.ic_xls
-            "ppt", "pptx" -> R.drawable.ic_ppt
-            "txt" -> R.drawable.ic_txt
-            "jpg", "jpeg", "png" -> R.drawable.ic_image
+            "doc", "docx", "rtf", "odt" -> R.drawable.ic_doc
+            "xls", "xlsx", "csv", "ods" -> R.drawable.ic_xls
+            "ppt", "pptx", "pps", "odp" -> R.drawable.ic_ppt
+            "txt", "md", "log", "json", "xml", "html", "htm", "css", "js" -> R.drawable.ic_txt
+            
+            // Görüntü formatları
+            "jpg", "jpeg", "png", "bmp", "tiff", "tif", "webp", "gif", "svg", "ico" -> R.drawable.ic_image
+            
+            // Diğer tüm formatlar
             else -> R.drawable.ic_file
         }
     }

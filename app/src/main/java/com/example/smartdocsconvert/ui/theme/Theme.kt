@@ -3,18 +3,50 @@ package com.example.smartdocsconvert.ui.theme
 import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+
+data class ExtendedColors(
+    val surfaceRed: Color,
+    val cardRed: Color,
+    val filterBackground: Color,
+    val filterSurface: Color,
+    val filterText: Color,
+    val selectedItem: Color,
+    val accentTeal: Color,
+    val goldColor: Color
+)
+
+private val LocalExtendedColors = staticCompositionLocalOf {
+    ExtendedColors(
+        surfaceRed = Color.Unspecified,
+        cardRed = Color.Unspecified,
+        filterBackground = Color.Unspecified,
+        filterSurface = Color.Unspecified,
+        filterText = Color.Unspecified,
+        selectedItem = Color.Unspecified,
+        accentTeal = Color.Unspecified,
+        goldColor = Color.Unspecified
+    )
+}
+
+val MaterialTheme.extendedColors: ExtendedColors
+    @Composable
+    @ReadOnlyComposable
+    get() = LocalExtendedColors.current
 
 private val DarkColorScheme = darkColorScheme(
     primary = PrimaryColor,
@@ -32,24 +64,49 @@ private val DarkColorScheme = darkColorScheme(
     surfaceVariant = DarkCardColor,
     error = ErrorColor,
     onError = Color(0xFF000000),
+    outline = DarkBorder
+)
+
+private val DarkExtendedColors = ExtendedColors(
+    surfaceRed = DarkSurfaceRed,
+    cardRed = DarkCardRed,
+    filterBackground = DarkFilterBackground,
+    filterSurface = DarkFilterSurface,
+    filterText = DarkFilterText,
+    selectedItem = SelectedItemColor,
+    accentTeal = AccentTeal,
+    goldColor = GoldColor
 )
 
 private val LightColorScheme = lightColorScheme(
     primary = PrimaryColor,
     onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = PrimaryVariant,
+    primaryContainer = PrimaryVariant.copy(alpha = 0.9f),
     onPrimaryContainer = Color(0xFFFFFFFF),
     secondary = SecondaryColor,
-    onSecondary = Color(0xFF000000),
+    onSecondary = Color(0xFFFFFFFF),
     tertiary = TertiaryColor,
     onTertiary = Color(0xFF000000),
-    background = Color(0xFFF5F5F5),
+    background = LightBackground,
     onBackground = Color(0xFF1A1A1A),
-    surface = Color(0xFFFFFFFF),
+    surface = LightSurface,
     onSurface = Color(0xFF1A1A1A),
-    surfaceVariant = Color(0xFFF0F0F0),
+    surfaceVariant = LightCardColor,
     error = ErrorColor,
     onError = Color(0xFFFFFFFF),
+    outline = LightBorder
+)
+
+// Extended colors for light theme
+private val LightExtendedColors = ExtendedColors(
+    surfaceRed = LightSurfaceRed,
+    cardRed = LightCardRed,
+    filterBackground = LightFilterBackground,
+    filterSurface = LightFilterSurface,
+    filterText = LightFilterText,
+    selectedItem = SelectedItemColor,
+    accentTeal = AccentTeal,
+    goldColor = GoldColor
 )
 
 @Composable
@@ -67,6 +124,10 @@ fun SmartDocsConvertTheme(
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
+    
+    // Use the appropriate extended colors based on the theme
+    val extendedColors = if (darkTheme) DarkExtendedColors else LightExtendedColors
+    
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -76,9 +137,13 @@ fun SmartDocsConvertTheme(
         }
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    androidx.compose.runtime.CompositionLocalProvider(
+        LocalExtendedColors provides extendedColors
+    ) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            content = content
+        )
+    }
 }

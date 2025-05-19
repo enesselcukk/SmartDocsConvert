@@ -4,7 +4,30 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
+    
+    <!-- Doküman gölgesi -->
     <path
-        android:fillColor="#FF000000"
-        android:pathData="M14,2H6C4.9,2 4,2.9 4,4v16c0,1.1 0.9,2 2,2h12c1.1,0 2,-0.9 2,-2V8L14,2zM16,18H8v-2h8V18zM16,14H8v-2h8V14zM16,10H8V8h8V10zM13,9V3.5L18.5,9H13z"/>
+        android:fillColor="#33000000"
+        android:pathData="M20,6.5V20c0,1.1 -0.9,2 -2,2H6c-1.1,0 -2,-0.9 -2,-2V4c0,-1.1 0.9,-2 2,-2h8.5L20,6.5z"
+        android:translateY="0.5" />
+    
+    <!-- Doküman ana kağıdı -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M20,6.5V20c0,1.1 -0.9,2 -2,2H6c-1.1,0 -2,-0.9 -2,-2V4c0,-1.1 0.9,-2 2,-2h8.5L20,6.5z" />
+    
+    <!-- Kağıt kıvrımı -->
+    <path
+        android:fillColor="#EAEAEA"
+        android:pathData="M14.5,2v3.5c0,0.55 0.45,1 1,1H20L14.5,2z" />
+    
+    <!-- Metin satırları -->
+    <path
+        android:fillColor="#607D8B"
+        android:pathData="M8,10h8v0.75H8zM8,12h8v0.75H8zM8,14h8v0.75H8zM8,16h5v0.75H8z" />
+    
+    <!-- TXT simgesi -->
+    <path
+        android:fillColor="#607D8B"
+        android:pathData="M14,8h-4v-1h1v-1h2v1h1z" />
 </vector> 

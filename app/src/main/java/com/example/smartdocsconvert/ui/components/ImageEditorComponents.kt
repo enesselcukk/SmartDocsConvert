@@ -39,10 +39,11 @@ import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example.smartdocsconvert.R
-import com.example.smartdocsconvert.ui.theme.FilterColors
+import com.example.smartdocsconvert.ui.theme.extendedColors
 import com.example.smartdocsconvert.data.model.ImageFilterState
 import com.example.smartdocsconvert.ui.viewmodel.ImageFilterViewModel
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.isSystemInDarkTheme
 
 /**
  * Main editor composable with image display and controls
@@ -511,7 +512,7 @@ fun FilterPreviewImage(
             .clip(RoundedCornerShape(12.dp))
             .border(
                 width = 2.dp,
-                color = if (isSelected) FilterColors.accentColor else Color.White,
+                color = if (isSelected) MaterialTheme.extendedColors.accentTeal else Color.White,
                 shape = RoundedCornerShape(12.dp)
             )
             .background(Color.Gray.copy(alpha = 0.5f)),
@@ -602,7 +603,7 @@ fun FilterBottomNavigation(
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                FilterColors.surfaceColor.copy(alpha = 0.95f),
+                MaterialTheme.extendedColors.filterSurface,
                 RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
             )
             .padding(vertical = 16.dp),
@@ -670,13 +671,13 @@ fun FilterNavItem(
             Icon(
                 painter = painterResource(id = icon),
                 contentDescription = text,
-                tint = if (isSelected) FilterColors.selectedColor else FilterColors.textColor,
+                tint = if (isSelected) MaterialTheme.extendedColors.selectedItem else MaterialTheme.extendedColors.filterText,
                 modifier = Modifier.size(24.dp)
             )
         }
         Text(
             text = text,
-            color = if (isSelected) FilterColors.selectedColor else FilterColors.textColor,
+            color = if (isSelected) MaterialTheme.extendedColors.selectedItem else MaterialTheme.extendedColors.filterText,
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.graphicsLayer {
                 alpha = if (isSelected) 1f else 0.7f

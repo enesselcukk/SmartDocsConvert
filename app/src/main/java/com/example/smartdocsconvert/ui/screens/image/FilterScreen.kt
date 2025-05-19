@@ -28,13 +28,14 @@ import com.example.smartdocsconvert.ui.components.MainImageEditor
 import com.example.smartdocsconvert.ui.components.animateImageTransition
 import com.example.smartdocsconvert.ui.components.autoEnhanceImage
 import com.example.smartdocsconvert.ui.components.rememberImageTransformableState
-import com.example.smartdocsconvert.ui.theme.FilterColors
+import com.example.smartdocsconvert.ui.theme.extendedColors
 import com.example.smartdocsconvert.ui.viewmodel.ImageFilterViewModel
 import com.example.smartdocsconvert.ui.components.DownloadOptionsDialog
 import com.example.smartdocsconvert.ui.components.DownloadAnimation
 import com.example.smartdocsconvert.ui.components.AnimatedSaveButton
 import com.example.smartdocsconvert.ui.components.DownloadConfirmationDialog
 import kotlinx.coroutines.delay
+import androidx.compose.foundation.isSystemInDarkTheme
 
 @SuppressLint("RememberReturnType")
 @Composable
@@ -120,7 +121,7 @@ fun FilterScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(FilterColors.darkBackground)
+                .background(MaterialTheme.extendedColors.filterBackground)
                 .padding(paddingValues)
         ) {
             Column(
@@ -286,20 +287,20 @@ private fun FilterTopAppBar(onBackClick: () -> Unit) {
         title = {
             Text(
                 "Filtreler",
-                color = FilterColors.textColor,
+                color = MaterialTheme.extendedColors.filterText,
                 style = MaterialTheme.typography.titleLarge
             )
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = FilterColors.surfaceColor,
-            titleContentColor = FilterColors.textColor
+            containerColor = MaterialTheme.extendedColors.filterSurface,
+            titleContentColor = MaterialTheme.extendedColors.filterText
         ),
         navigationIcon = {
             IconButton(onClick = onBackClick) {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_back),
                     contentDescription = "Back",
-                    tint = FilterColors.textColor
+                    tint = MaterialTheme.extendedColors.filterText
                 )
             }
         }
