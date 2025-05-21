@@ -15,6 +15,12 @@ sealed class Screen(
 ) {
     object Home : Screen("home_screen", "Home", R.drawable.ic_home)
     object FileConverter : Screen("file_converter_screen", "Convert File", 0)
+    object EditOptimize : Screen("edit_optimize_screen", "Edit & Optimize", 0) {
+        fun createRoute(filePathsString: String): String {
+            val encodedPaths = URLEncoder.encode(filePathsString, StandardCharsets.UTF_8.toString())
+            return "$route/$encodedPaths"
+        }
+    }
     object SelectedImage : Screen("selected_image_screen", "Selected Image", 0) {
         fun selectedImageFilterRoute(imageUrisString: String): String {
             return "$route/$imageUrisString"

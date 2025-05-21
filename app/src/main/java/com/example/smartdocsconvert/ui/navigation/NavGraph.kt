@@ -9,9 +9,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.smartdocsconvert.ui.screens.HomeScreen
 import com.example.smartdocsconvert.ui.screens.file.ConvertFileScreen
+import com.example.smartdocsconvert.ui.screens.file.EditOptimizeScreen
 import com.example.smartdocsconvert.ui.screens.image.FilterScreen
 import com.example.smartdocsconvert.ui.screens.image.SelectPermissionsScreen
 import com.example.smartdocsconvert.ui.screens.image.SelectedImageScreen
+import java.io.File
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
@@ -93,7 +95,45 @@ fun NavGraph(
                 onBackClick = {
                     navController.navigateUp()
                 }, 
-                onNextClick = {}
+                onNextClick = { selectedFiles ->
+                    // Convert list of Files to a comma-separated string of file paths
+                    val filePathsString = selectedFiles.joinToString(",") { it.absolutePath }
+                    navController.navigate(Screen.EditOptimize.createRoute(filePathsString))
+                }
+            )
+        }
+        
+        composable(
+            route = "${Screen.EditOptimize.route}/{filePaths}",
+            arguments = listOf(
+                navArgument("filePaths") {
+                    type = NavType.StringType
+                }
+            )
+        ) { backStackEntry ->
+            val filePathsString = backStackEntry.arguments?.getString("filePaths")
+            val decodedPaths = filePathsString?.let {
+                URLDecoder.decode(it, StandardCharsets.UTF_8.toString())
+            } ?: ""
+            
+            val selectedFiles = decodedPaths.split(",").map { path ->
+                File(path)
+            }
+            
+            EditOptimizeScreen(
+                onBackClick = {
+                    navController.navigateUp()
+                },
+                onNextClick = { optimizedFiles ->
+                    // Burada üçüncü adıma (Save & Share) geçiş yapılacak
+                    // Şimdilik ana sayfaya dönelim
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Home.route) {
+                            inclusive = true
+                        }
+                    }
+                },
+                selectedFiles = selectedFiles
             )
         }
     }
