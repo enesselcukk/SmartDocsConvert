@@ -1,10 +1,9 @@
 package com.example.smartdocsconvert.ui.screens.file
 
-import android.content.Context
+
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,10 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Check
@@ -67,7 +63,7 @@ fun EditOptimizeScreen(
     val coroutineScope = rememberCoroutineScope()
     
     // Selected file for editing
-    var currentEditingFileIndex by remember { mutableStateOf(0) }
+    var currentEditingFileIndex by remember { mutableIntStateOf(0) }
     var optimizedFiles by remember { mutableStateOf(selectedFiles.toList()) }
     
     // File optimization options
@@ -294,10 +290,10 @@ private fun ModernTopAppBar(
     primaryColor: Color,
     onBackClick: () -> Unit
 ) {
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(170.dp)
+            .height(140.dp)
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
@@ -306,43 +302,65 @@ private fun ModernTopAppBar(
                         backgroundColor.copy(alpha = 0.90f)
                     )
                 ),
-                shape = RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp)
+                shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
             )
             .shadow(
-                elevation = 12.dp,
-                shape = RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp),
+                elevation = 8.dp,
+                shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
                 spotColor = primaryColor.copy(alpha = 0.15f)
             )
     ) {
-        // Back button
-        IconButton(
-            onClick = onBackClick,
+        // Top section with back button
+        Box(
             modifier = Modifier
-                .padding(16.dp)
-                .align(Alignment.TopStart)
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(primaryColor.copy(alpha = 0.1f))
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 8.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.ArrowBack,
-                contentDescription = "Back",
-                tint = primaryColor
+            // Back button
+            IconButton(
+                onClick = onBackClick,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(primaryColor.copy(alpha = 0.1f))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Back",
+                    tint = primaryColor,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            // Title
+            Text(
+                text = "Edit & Optimize",
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.align(Alignment.Center)
             )
         }
 
-        // Progress tracker with modern design
-        ModernProgressTracker(
+        // Progress tracker
+        Box(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 12.dp)
-                .graphicsLayer {
-                    alpha = 0.98f
-                },
-            primaryColor = primaryColor,
-            currentStep = 2,
-            totalSteps = 3
-        )
+                .fillMaxWidth()
+                .weight(1f),
+            contentAlignment = Alignment.Center
+        ) {
+            ModernProgressTracker(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .graphicsLayer {
+                        alpha = 0.98f
+                    },
+                primaryColor = primaryColor,
+                currentStep = 2,
+                totalSteps = 3
+            )
+        }
     }
 }
 
