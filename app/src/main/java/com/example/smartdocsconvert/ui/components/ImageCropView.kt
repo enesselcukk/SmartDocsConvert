@@ -30,7 +30,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -66,7 +65,6 @@ fun ImageCropView(
                 .pointerInput(Unit) {
                     detectDragGestures(
                         onDragStart = { offset ->
-                            // Determine which corner (if any) was clicked
                             isDragging = true
                             dragStart = offset
                             
@@ -111,43 +109,74 @@ fun ImageCropView(
                             change.consume()
                             
                             if (imageSize.width <= 0 || imageSize.height <= 0) return@detectDragGestures
-                            
-                            val currentRect = cropRect
+
                             val normalizedDragX = dragAmount.x / imageSize.width
                             val normalizedDragY = dragAmount.y / imageSize.height
-                            
+
                             val newRect = when (dragCorner) {
                                 "topLeft" -> {
-                                    currentRect.copy(
-                                        left = (currentRect.left + normalizedDragX).coerceIn(0f, currentRect.right - minCropSize / imageSize.width),
-                                        top = (currentRect.top + normalizedDragY).coerceIn(0f, currentRect.bottom - minCropSize / imageSize.height)
+                                    cropRect.copy(
+                                        left = (cropRect.left + normalizedDragX).coerceIn(
+                                            0f,
+                                            cropRect.right - minCropSize / imageSize.width
+                                        ),
+                                        top = (cropRect.top + normalizedDragY).coerceIn(
+                                            0f,
+                                            cropRect.bottom - minCropSize / imageSize.height
+                                        )
                                     )
                                 }
+
                                 "topRight" -> {
-                                    currentRect.copy(
-                                        right = (currentRect.right + normalizedDragX).coerceIn(currentRect.left + minCropSize / imageSize.width, 1f),
-                                        top = (currentRect.top + normalizedDragY).coerceIn(0f, currentRect.bottom - minCropSize / imageSize.height)
+                                    cropRect.copy(
+                                        right = (cropRect.right + normalizedDragX).coerceIn(
+                                            cropRect.left + minCropSize / imageSize.width,
+                                            1f
+                                        ),
+                                        top = (cropRect.top + normalizedDragY).coerceIn(
+                                            0f,
+                                            cropRect.bottom - minCropSize / imageSize.height
+                                        )
                                     )
                                 }
+
                                 "bottomLeft" -> {
-                                    currentRect.copy(
-                                        left = (currentRect.left + normalizedDragX).coerceIn(0f, currentRect.right - minCropSize / imageSize.width),
-                                        bottom = (currentRect.bottom + normalizedDragY).coerceIn(currentRect.top + minCropSize / imageSize.height, 1f)
+                                    cropRect.copy(
+                                        left = (cropRect.left + normalizedDragX).coerceIn(
+                                            0f,
+                                            cropRect.right - minCropSize / imageSize.width
+                                        ),
+                                        bottom = (cropRect.bottom + normalizedDragY).coerceIn(
+                                            cropRect.top + minCropSize / imageSize.height, 1f
+                                        )
                                     )
                                 }
+
                                 "bottomRight" -> {
-                                    currentRect.copy(
-                                        right = (currentRect.right + normalizedDragX).coerceIn(currentRect.left + minCropSize / imageSize.width, 1f),
-                                        bottom = (currentRect.bottom + normalizedDragY).coerceIn(currentRect.top + minCropSize / imageSize.height, 1f)
+                                    cropRect.copy(
+                                        right = (cropRect.right + normalizedDragX).coerceIn(
+                                            cropRect.left + minCropSize / imageSize.width,
+                                            1f
+                                        ),
+                                        bottom = (cropRect.bottom + normalizedDragY).coerceIn(
+                                            cropRect.top + minCropSize / imageSize.height, 1f
+                                        )
                                     )
                                 }
+
                                 "move" -> {
-                                    val rectWidth = currentRect.right - currentRect.left
-                                    val rectHeight = currentRect.bottom - currentRect.top
-                                    
-                                    var newLeft = (currentRect.left + normalizedDragX).coerceIn(0f, 1f - rectWidth)
-                                    var newTop = (currentRect.top + normalizedDragY).coerceIn(0f, 1f - rectHeight)
-                                    
+                                    val rectWidth = cropRect.right - cropRect.left
+                                    val rectHeight = cropRect.bottom - cropRect.top
+
+                                    val newLeft = (cropRect.left + normalizedDragX).coerceIn(
+                                        0f,
+                                        1f - rectWidth
+                                    )
+                                    val newTop = (cropRect.top + normalizedDragY).coerceIn(
+                                        0f,
+                                        1f - rectHeight
+                                    )
+
                                     Rect(
                                         left = newLeft,
                                         top = newTop,
@@ -155,7 +184,8 @@ fun ImageCropView(
                                         bottom = newTop + rectHeight
                                     )
                                 }
-                                else -> currentRect
+
+                                else -> cropRect
                             }
                             
                             onCropRectChange(newRect)
@@ -163,15 +193,13 @@ fun ImageCropView(
                     )
                 }
         ) {
-            // Background image
             AsyncImage(
                 model = imageUri,
                 contentDescription = "Crop image",
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize()
             )
-            
-            // Overlay with transparent crop area
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()

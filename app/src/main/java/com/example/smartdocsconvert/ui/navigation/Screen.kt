@@ -6,9 +6,7 @@ import java.nio.charset.StandardCharsets
 import com.example.smartdocsconvert.R
 import java.io.File
 
-/**
- * Uygulama içinde navigasyon için rota tanımlarını içerir
- */
+
 sealed class Screen(
     val route: String,
     val title: String,
@@ -40,10 +38,5 @@ sealed class Screen(
         }
     }
     object SelectPermissions : Screen("select_permissions_screen", "Select Permissions", 0)
-    object DocumentViewer : Screen("document_viewer_screen", "Document Viewer", 0) {
-        fun createRoute(documentPath: String): String {
-            val encodedPath = URLEncoder.encode(documentPath, StandardCharsets.UTF_8.toString())
-            return "$route/$encodedPath"
-        }
-    }
+    object DocumentViewer : Screen("document_viewer_screen", "Document Viewer", 0)
 } 

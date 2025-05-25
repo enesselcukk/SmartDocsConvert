@@ -93,7 +93,6 @@ fun DocumentItem(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Document icon with type badge
             Box(
                 modifier = Modifier
                     .size(50.dp)
@@ -108,7 +107,6 @@ fun DocumentItem(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                // Document type icon based on extension
                 Icon(
                     painter = painterResource(
                         id = getIconForDocumentType(document.type)
@@ -117,8 +115,7 @@ fun DocumentItem(
                     tint = primaryColor,
                     modifier = Modifier.size(30.dp)
                 )
-                
-                // Type badge
+
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -138,8 +135,7 @@ fun DocumentItem(
             }
             
             Spacer(modifier = Modifier.width(12.dp))
-            
-            // Document info
+
             Column(
                 modifier = Modifier.weight(1f)
             ) {
@@ -153,8 +149,7 @@ fun DocumentItem(
                 )
                 
                 Spacer(modifier = Modifier.height(4.dp))
-                
-                // Date and size
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -182,8 +177,7 @@ fun DocumentItem(
                     )
                 }
             }
-            
-            // Action buttons
+
             Icon(
                 painter = painterResource(id = R.drawable.ic_more),
                 contentDescription = "More options",

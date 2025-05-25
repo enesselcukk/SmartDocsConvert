@@ -26,25 +26,20 @@ object PdfUtil {
         }
 
         val outputFile = File(smartDocsDownloadDir, outputFileName)
-
         val bitmap = loadBitmapEfficiently(context, imageUri) ?: throw IllegalStateException("Failed to load bitmap from URI")
         
         try {
             val stream = ByteArrayOutputStream()
-            
             val bitmapData = stream.toByteArray()
-            
-            // PDF oluştur
+
             val fileOutputStream = FileOutputStream(outputFile)
             val writer = PdfWriter(fileOutputStream)
             val pdf = PdfDocument(writer)
             val document = Document(pdf)
             
             try {
-                // Bitmap'i PDF'e ekle
                 val image = Image(ImageDataFactory.create(bitmapData))
-                
-                // Sayfa boyutuna göre resmi ölçeklendir
+
                 val pageWidth = document.pdfDocument.defaultPageSize.width - 50
                 val pageHeight = document.pdfDocument.defaultPageSize.height - 50
                 
@@ -52,8 +47,7 @@ object PdfUtil {
                 val imageHeight = image.imageHeight
                 
                 val ratio = (pageWidth / imageWidth).coerceAtMost(pageHeight / imageHeight)
-                
-                // Sayfa içinde uygun şekilde konumlandır
+
                 val scaledWidth = imageWidth * ratio
                 val scaledHeight = imageHeight * ratio
                 
@@ -62,8 +56,7 @@ object PdfUtil {
                 
                 image.scaleToFit(scaledWidth, scaledHeight)
                 image.setFixedPosition(xPosition, yPosition)
-                
-                // Görüntüyü PDF'e ekle
+
                 document.add(image)
                 
             } finally {
@@ -76,20 +69,17 @@ object PdfUtil {
                     Log.e("PdfUtil", "Error while closing PDF resources", e)
                 }
             }
-            
-            // Dosya oluşturuldu mu kontrol et
+
             if (outputFile.exists() && outputFile.length() > 0) {
                 return outputFile
             } else {
                 throw IllegalStateException("PDF file was not created properly")
             }
         } finally {
-            // Bitmap'i temizle
             bitmap.recycle()
         }
     }
-    
-    // Bitmap'i verimli bir şekilde belleğe yükle
+
     private fun loadBitmapEfficiently(context: Context, imageUri: Uri): Bitmap? {
         try {
             val options = BitmapFactory.Options().apply {
@@ -99,15 +89,12 @@ object PdfUtil {
             context.contentResolver.openInputStream(imageUri)?.use { inputStream ->
                 BitmapFactory.decodeStream(inputStream, null, options)
             }
-            
-            // Örnekleme oranını belirle
+
             options.inJustDecodeBounds = false
-            options.inSampleSize = calculateInSampleSize(options.outWidth, options.outHeight, 2048, 2048)
-            
-            // Bellek kullanımını azalt
+            options.inSampleSize =
+                2048.calculateInSampleSize(options.outWidth, options.outHeight, 2048)
             options.inPreferredConfig = Bitmap.Config.RGB_565
-            
-            // İkinci geçiş: bitmap'i yükle
+
             return context.contentResolver.openInputStream(imageUri)?.use { inputStream ->
                 BitmapFactory.decodeStream(inputStream, null, options)
             }
@@ -115,16 +102,15 @@ object PdfUtil {
             return null
         }
     }
-    
-    // Örnekleme boyutu hesaplama
-    private fun calculateInSampleSize(width: Int, height: Int, reqWidth: Int, reqHeight: Int): Int {
+
+    private fun Int.calculateInSampleSize(width: Int, height: Int, reqHeight: Int): Int {
         var inSampleSize = 1
         
-        if (height > reqHeight || width > reqWidth) {
+        if (height > reqHeight || width > this) {
             val halfHeight = height / 2
             val halfWidth = width / 2
             
-            while ((halfHeight / inSampleSize) >= reqHeight && (halfWidth / inSampleSize) >= reqWidth) {
+            while ((halfHeight / inSampleSize) >= reqHeight && (halfWidth / inSampleSize) >= this) {
                 inSampleSize *= 2
             }
         }
@@ -141,7 +127,6 @@ object PdfUtil {
         }
         
         val outputFile = File(smartDocsDownloadDir, outputFileName)
-        
         var fileOutputStream: FileOutputStream? = null
         var writer: PdfWriter? = null
         var pdf: PdfDocument? = null

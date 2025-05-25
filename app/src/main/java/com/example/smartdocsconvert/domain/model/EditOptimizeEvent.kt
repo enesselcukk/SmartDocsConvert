@@ -7,9 +7,9 @@ sealed interface EditOptimizeEvent {
     data class UpdateFileName(val name: String) : EditOptimizeEvent
     
     sealed interface Dialog : EditOptimizeEvent {
-        object Show : Dialog
-        object Hide : Dialog
-        object Confirm : Dialog
+        data object Show : Dialog
+        data object Hide : Dialog
+        data object Confirm : Dialog
     }
 
 } 

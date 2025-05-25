@@ -226,7 +226,6 @@ fun SaveShareScreen(
             
             item {
                 ShareOptionsCard(
-                    files = optimizedFiles,
                     cardColor = cardColor,
                     primaryColor = primaryColor,
                     onShareClick = { /* TODO: Implement share logic */ }
@@ -398,7 +397,6 @@ private fun SaveOptionsCard(
 
 @Composable
 private fun ShareOptionsCard(
-    files: List<File>,
     cardColor: Color,
     primaryColor: Color,
     onShareClick: () -> Unit

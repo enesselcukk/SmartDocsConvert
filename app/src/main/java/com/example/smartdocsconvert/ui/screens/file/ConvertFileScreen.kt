@@ -60,6 +60,7 @@ import android.net.Uri
 import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.core.content.FileProvider
 
 @Composable
@@ -83,29 +84,28 @@ fun ConvertFileScreen(
     val darkBackground = Color(0xFF121212) // Deeper dark
     val surfaceColor = Color(0xFF1E1E1E) // Dark surface
     val errorColor = Color(0xFFFF5A5A) // Warning/error
-    val cardColor = Color(0xFF242424)
-    
+
     // App state
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    
+
     // Permission state (now handled in UI)
     var hasStoragePermission by remember { mutableStateOf(permissionHelper.hasStoragePermissions()) }
     var showPermissionRationale by remember { mutableStateOf(false) }
     var permissionRequestCount by remember { mutableStateOf(0) }
-    
+
     // Check permissions on launch
     LaunchedEffect(Unit) {
         hasStoragePermission = permissionHelper.hasStoragePermissions()
     }
-    
+
     // Refresh files when permission granted
     LaunchedEffect(hasStoragePermission) {
         if (hasStoragePermission) {
             viewModel.refreshFiles(context)
         }
     }
-    
+
     // Hata mesajı varsa göster
     LaunchedEffect(uiState.lastError) {
         uiState.lastError?.let {
@@ -115,7 +115,7 @@ fun ConvertFileScreen(
             )
         }
     }
-    
+
     // İzin isteme launcher'ı
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -123,13 +123,13 @@ fun ConvertFileScreen(
         val allGranted = permissions.values.all { it }
         permissionRequestCount++
         hasStoragePermission = allGranted
-        
+
         // Show rationale dialog if permissions are denied and this isn't the first request
         if (!allGranted && permissionRequestCount > 1) {
             showPermissionRationale = true
         }
     }
-    
+
     // İzin reddedildi dialoga
     if (showPermissionRationale) {
         PermissionDeniedDialog(
@@ -167,7 +167,7 @@ fun ConvertFileScreen(
                     shape = CircleShape
                 )
         )
-        
+
         Box(
             modifier = Modifier
                 .size(300.dp)
@@ -186,12 +186,12 @@ fun ConvertFileScreen(
                     shape = CircleShape
                 )
         )
-        
+
         // Scaffold ile Snackbar hostu ekle
         Scaffold(
             containerColor = Color.Transparent,
             contentColor = Color.White,
-            snackbarHost = { 
+            snackbarHost = {
                 SnackbarHost(
                     hostState = snackbarHostState,
                     modifier = Modifier.padding(16.dp),
@@ -245,11 +245,12 @@ fun ConvertFileScreen(
                         FileListContent(
                             files = uiState.files,
                             selectedFiles = uiState.selectedFiles,
-                            onFileSelected = { viewModel.toggleFileSelection(it) }
+                            onFileSelected = { viewModel.toggleFileSelection(it) },
+                            onBackClick = onBackClick
                         )
                     }
                 }
-                
+
                 // Bottom action buttons in a fixed position at the bottom
                 Box(
                     modifier = Modifier
@@ -278,7 +279,7 @@ private fun ModernTopAppBar(
     onBackClick: () -> Unit,
     onRefreshClick: () -> Unit
 ) {
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .height(170.dp)
@@ -298,49 +299,58 @@ private fun ModernTopAppBar(
                 spotColor = primaryColor.copy(alpha = 0.15f)
             )
     ) {
-        // Üst tarafta dekoratif gradient efekti
+        // Top section with back button
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(70.dp)
-                .clip(RoundedCornerShape(bottomStart = 100.dp, bottomEnd = 100.dp))
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            primaryColor.copy(alpha = 0.15f),
-                            Color.Transparent
-                        )
-                    )
+                .padding(horizontal = 8.dp, vertical = 8.dp)
+        ) {
+            // Back button
+            IconButton(
+                onClick = onBackClick,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(primaryColor.copy(alpha = 0.1f))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Back",
+                    tint = primaryColor,
+                    modifier = Modifier.size(24.dp)
                 )
-        )
-        // Progress tracker etrafında parıltı
+            }
+
+            // Title
+            Text(
+                text = "Select Document",
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Progress tracker
         Box(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 12.dp)
-                .size(width = 240.dp, height = 90.dp)
-                .background(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            primaryColor.copy(alpha = 0.08f),
-                            Color.Transparent
-                        )
-                    )
-                )
-        )
-
-        // Progress tracker with modern design
-        ModernProgressTracker(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 12.dp)
-                .graphicsLayer {
-                    alpha = 0.98f
-                },
-            primaryColor = primaryColor,
-            currentStep = 1,
-            totalSteps = 3
-        )
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            ModernProgressTracker(
+                modifier = Modifier
+                    .graphicsLayer {
+                        alpha = 0.98f
+                    },
+                primaryColor = primaryColor,
+                currentStep = 1,
+                totalSteps = 3
+            )
+        }
     }
 }
 
@@ -355,7 +365,7 @@ private fun ModernProgressTracker(
     totalSteps: Int
 ) {
     val lineWidth = 70.dp
-    
+
     // Ana container için sıçrama animasyonu
     val infiniteTransition = rememberInfiniteTransition(label = "")
     val containerScale by infiniteTransition.animateFloat(
@@ -367,7 +377,7 @@ private fun ModernProgressTracker(
         ),
         label = ""
     )
-    
+
     // Bağlantı çizgileri için parıltı animasyonu
     val glowAlpha by infiniteTransition.animateFloat(
         initialValue = 0.2f,
@@ -378,7 +388,7 @@ private fun ModernProgressTracker(
         ),
         label = ""
     )
-    
+
     // Gradient ışıltı efekti için pozisyon
     val shimmerOffset by infiniteTransition.animateFloat(
         initialValue = -1000f,
@@ -388,11 +398,11 @@ private fun ModernProgressTracker(
         ),
         label = ""
     )
-    
+
     // Adım açıklamaları
     val stepDescriptions = listOf("Select Document", "Edit & Optimize", "Save & Share")
     val currentStepDescription = stepDescriptions.getOrNull(currentStep - 1) ?: ""
-    
+
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -428,18 +438,19 @@ private fun ModernProgressTracker(
                     shape = RoundedCornerShape(32.dp)
                 )
                 .padding(horizontal = 24.dp, vertical = 16.dp)
+                .width(300.dp) // Sabit genişlik ekledim
         ) {
             Row(
                 modifier = Modifier
                     .align(Alignment.Center),
-                horizontalArrangement = Arrangement.Center,
+                horizontalArrangement = Arrangement.spacedBy(space = 8.dp), // Adımlar arası boşluk
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 repeat(totalSteps) { index ->
                     val stepNumber = index + 1
                     val isActive = stepNumber == currentStep
                     val isCompleted = stepNumber < currentStep
-                    
+
                     // Step indicator
                     EnhancedStepIndicator(
                         number = stepNumber,
@@ -447,7 +458,7 @@ private fun ModernProgressTracker(
                         isCompleted = isCompleted,
                         primaryColor = primaryColor
                     )
-                    
+
                     // Connector line between steps
                     if (index < totalSteps - 1) {
                         Box(
@@ -455,50 +466,55 @@ private fun ModernProgressTracker(
                                 .width(lineWidth)
                                 .height(4.dp)
                                 .clip(RoundedCornerShape(2.dp))
-                                .background(
-                                    brush = Brush.horizontalGradient(
-                                        colors = if (isCompleted) {
-                                            listOf(
-                                                primaryColor,
-                                                primaryColor.copy(alpha = 0.8f)
-                                            )
-                                        } else {
-                                            listOf(
-                                                Color.White.copy(alpha = 0.2f),
-                                                Color.White.copy(alpha = 0.1f)
-                                            )
-                                        }
-                                    )
-                                )
-                        )
-                        
-                        // Animasyonlu parıltı efekti (tamamlanmış adımlar arasında)
-                        if (isCompleted) {
+                        ) {
+                            // Base line
                             Box(
                                 modifier = Modifier
-                                    .width(lineWidth)
-                                    .height(4.dp)
-                                    .offset(y = (-4).dp)
-                                    .clip(RoundedCornerShape(2.dp))
+                                    .fillMaxSize()
                                     .background(
                                         brush = Brush.horizontalGradient(
-                                            colors = listOf(
-                                                primaryColor.copy(alpha = 0f),
-                                                primaryColor.copy(alpha = glowAlpha),
-                                                primaryColor.copy(alpha = 0f)
-                                            ),
-                                            startX = shimmerOffset - 500f,
-                                            endX = shimmerOffset + 500f
+                                            colors = if (isCompleted) {
+                                                listOf(
+                                                    primaryColor,
+                                                    primaryColor.copy(alpha = 0.8f)
+                                                )
+                                            } else {
+                                                listOf(
+                                                    Color.White.copy(alpha = 0.2f),
+                                                    Color.White.copy(alpha = 0.1f)
+                                                )
+                                            }
                                         )
                                     )
                             )
+
+                            // Animated glow effect for completed lines
+                            if (isCompleted) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .graphicsLayer {
+                                            alpha = glowAlpha
+                                        }
+                                        .background(
+                                            brush = Brush.horizontalGradient(
+                                                colors = listOf(
+                                                    primaryColor.copy(alpha = 0f),
+                                                    primaryColor.copy(alpha = 0.5f),
+                                                    primaryColor.copy(alpha = 0f)
+                                                ),
+                                                startX = shimmerOffset - 500f,
+                                                endX = shimmerOffset + 500f
+                                            )
+                                        )
+                                )
+                            }
                         }
                     }
                 }
             }
         }
-        
-        // Adım açıklaması
+
         AnimatedVisibility(
             visible = currentStepDescription.isNotEmpty(),
             enter = expandVertically() + fadeIn(),
@@ -535,16 +551,16 @@ private fun ModernProgressTracker(
                     3 -> R.drawable.ic_download
                     else -> R.drawable.ic_file
                 }
-                
+
                 Icon(
                     painter = painterResource(id = stepIcon),
                     contentDescription = null,
                     tint = primaryColor,
                     modifier = Modifier.size(18.dp)
                 )
-                
+
                 Spacer(modifier = Modifier.width(8.dp))
-                
+
                 // Adım açıklaması
                 Text(
                     text = currentStepDescription,
@@ -567,8 +583,10 @@ private fun EnhancedStepIndicator(
     isCompleted: Boolean,
     primaryColor: Color
 ) {
+    val size = if (isActive) 48.dp else 40.dp // Boyutları küçülttüm
+
     val infiniteTransition = rememberInfiniteTransition(label = "")
-    
+
     // Aktif adım için daha vurgulu animasyon
     val activeScale by animateFloatAsState(
         targetValue = if (isActive) 1.1f else 0.9f,
@@ -578,167 +596,40 @@ private fun EnhancedStepIndicator(
         ),
         label = ""
     )
-    
-    // Seçili adım için parıltı animasyonu
-    val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = if (isActive) 1.15f else 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = ""
-    )
-    
-    // Glow efekti için opaklık animasyonu
-    val glowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.2f,
-        targetValue = if (isActive) 0.6f else 0.2f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = ""
-    )
-    
-    // Tamamlanmış adım için hareketli onay işareti animasyonu
-    val checkScale by infiniteTransition.animateFloat(
-        initialValue = 0.8f,
-        targetValue = 1.2f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = ""
-    )
-    
-    // Adım içindeki rotasyon
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = if (isActive) 5f else 0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = ""
-    )
-    
-    val size = if (isActive) 50.dp else 40.dp
-    
+
     Box(
         modifier = Modifier
-            .size(64.dp),
+            .size(size)
+            .scale(activeScale)
+            .clip(CircleShape)
+            .background(
+                if (isActive || isCompleted) primaryColor
+                else Color.White.copy(alpha = 0.1f)
+            )
+            .border(
+                width = 1.dp,
+                color = if (isActive || isCompleted)
+                    primaryColor.copy(alpha = 0.8f)
+                else
+                    Color.White.copy(alpha = 0.2f),
+                shape = CircleShape
+            ),
         contentAlignment = Alignment.Center
     ) {
-        // Dış parıltı efekti
-        if (isActive || isCompleted) {
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .scale(pulseScale)
-                    .clip(CircleShape)
-                    .background(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                if (isActive) primaryColor.copy(alpha = glowAlpha) else primaryColor.copy(alpha = 0.3f),
-                                Color.Transparent
-                            )
-                        )
-                    )
+        if (isCompleted) {
+            Icon(
+                imageVector = Icons.Rounded.Check,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(24.dp)
             )
-        }
-        
-        // Ana gösterge dairesi
-        Box(
-            modifier = Modifier
-                .size(size)
-                .scale(activeScale)
-                .graphicsLayer {
-                    rotationZ = rotation
-                }
-                .clip(CircleShape)
-                .background(
-                    brush = if (isActive || isCompleted) {
-                        Brush.linearGradient(
-                            colors = listOf(
-                                primaryColor,
-                                primaryColor.copy(alpha = 0.8f)
-                            ),
-                            start = Offset(0f, 0f),
-                            end = Offset(size.value, size.value)
-                        )
-                    } else {
-                        Brush.linearGradient(
-                            colors = listOf(
-                                Color(0xFF333333),
-                                Color(0xFF222222)
-                            )
-                        )
-                    }
-                )
-                .border(
-                    width = if (isActive) 2.dp else 1.dp,
-                    brush = if (isActive || isCompleted) {
-                        Brush.linearGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.8f),
-                                primaryColor.copy(alpha = 0.5f)
-                            )
-                        )
-                    } else {
-                        Brush.linearGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.2f),
-                                Color.White.copy(alpha = 0.05f)
-                            )
-                        )
-                    },
-                    shape = CircleShape
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            if (isCompleted) {
-                // Tamamlanmış adım için onay işareti
-                Icon(
-                    imageVector = Icons.Rounded.Check,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier
-                        .size(24.dp)
-                        .scale(checkScale)
-                )
-            } else {
-                // Aktif veya pasif adım numarası
-                Text(
-                    text = number.toString(),
-                    color = if (isActive) Color.White else Color.White.copy(alpha = 0.6f),
-                    fontSize = if (isActive) 18.sp else 16.sp,
-                    fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .padding(2.dp)
-                )
-                
-                // Aktif adım için dönüşen dairesel ilerleme göstergesi
-                if (isActive) {
-                    val rotation by infiniteTransition.animateFloat(
-                        initialValue = 0f,
-                        targetValue = 360f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(3000, easing = LinearEasing)
-                        ),
-                        label = ""
-                    )
-                    
-                    CircularProgressIndicator(
-                        modifier = Modifier
-                            .size(size)
-                            .graphicsLayer { rotationZ = rotation },
-                        color = Color.White.copy(alpha = 0.4f),
-                        strokeWidth = 1.dp
-                    )
-                }
-            }
+        } else {
+            Text(
+                text = number.toString(),
+                color = if (isActive) Color.White else Color.White.copy(alpha = 0.6f),
+                fontSize = if (isActive) 18.sp else 16.sp,
+                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium
+            )
         }
     }
 }
@@ -791,7 +682,7 @@ private fun SelectedFilesInfo(
                     ),
                     label = ""
                 )
-                
+
                 Box(
                     modifier = Modifier
                         .size(32.dp)
@@ -808,9 +699,9 @@ private fun SelectedFilesInfo(
                             .scale(iconScale)
                     )
                 }
-                
+
                 Spacer(modifier = Modifier.width(16.dp))
-                
+
                 Column {
                     Text(
                         text = "$selectedCount files selected",
@@ -818,7 +709,7 @@ private fun SelectedFilesInfo(
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 16.sp
                     )
-                    
+
                     if (selectedCount > 0) {
                         Text(
                             text = "Ready to convert",
@@ -865,7 +756,7 @@ private fun EnhancedFilesList(
                 fontWeight = FontWeight.Medium,
                 color = Color.White.copy(alpha = 0.8f)
             )
-            
+
             if (selectedFiles.isNotEmpty()) {
                 Text(
                     text = "${selectedFiles.size} selected",
@@ -875,7 +766,7 @@ private fun EnhancedFilesList(
                 )
             }
         }
-        
+
         // Files list
         LazyColumn(
             state = rememberLazyListState(),
@@ -924,7 +815,7 @@ private fun ModernFileItem(
     val interactionSource = remember { MutableInteractionSource() }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
-    
+
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.98f else 1f,
         animationSpec = spring(
@@ -933,16 +824,16 @@ private fun ModernFileItem(
         ),
         label = ""
     )
-    
+
     val elevation by animateFloatAsState(
         targetValue = if (isSelected) 4f else 1f,
         label = ""
     )
-    
+
     // File details
     val fileExtension = file.extension.uppercase()
     val fileIcon = R.drawable.ic_file
-    
+
     val fileColor = when (fileExtension) {
         "PDF" -> Color(0xFFFF4444)
         "DOC", "DOCX" -> Color(0xFF4285F4)
@@ -989,7 +880,7 @@ private fun ModernFileItem(
                 .combinedClickable(
                     interactionSource = interactionSource,
                     indication = rememberRipple(color = Color.White.copy(alpha = 0.1f)),
-                    onClick = { 
+                    onClick = {
                         isPressed = true
                         onClick()
                         // Reset the pressed state after a short delay
@@ -1029,7 +920,7 @@ private fun ModernFileItem(
                     modifier = Modifier.size(28.dp)
                 )
             }
-            
+
             // File details with better layout
             Column(
                 modifier = Modifier
@@ -1053,7 +944,7 @@ private fun ModernFileItem(
                         fontSize = 12.sp,
                         color = Color.White.copy(alpha = 0.5f)
                     )
-                    
+
                     Box(
                         modifier = Modifier
                             .padding(horizontal = 6.dp)
@@ -1061,7 +952,7 @@ private fun ModernFileItem(
                             .clip(CircleShape)
                             .background(Color.White.copy(alpha = 0.3f))
                     )
-                    
+
                     Text(
                         text = fileExtension,
                         fontSize = 12.sp,
@@ -1070,7 +961,7 @@ private fun ModernFileItem(
                     )
                 }
             }
-            
+
             // Selection indicator with animation
             if (isSelected) {
                 Box(
@@ -1169,7 +1060,7 @@ private fun showNoAppFoundDialog(context: Context, mimeType: String) {
                 data = Uri.parse("market://search?q=${mimeType.replace("/", " ")} görüntüleyici")
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            
+
             if (marketIntent.resolveActivity(context.packageManager) != null) {
                 context.startActivity(marketIntent)
             } else {
@@ -1182,7 +1073,7 @@ private fun showNoAppFoundDialog(context: Context, mimeType: String) {
         }
         .setNegativeButton("Hayır", null)
         .create()
-    
+
     alertDialog.show()
 }
 
@@ -1236,12 +1127,12 @@ private fun ImprovedBottomButtons(
                         colors = listOf(
                             Color.Transparent,
                             backgroundColor.copy(alpha = 0.95f),
-                            backgroundColor 
+                            backgroundColor
                         )
                     )
                 )
                 .padding(
-                    start = 16.dp, 
+                    start = 16.dp,
                     end = 16.dp,
                     top = 12.dp,
                     bottom = if (selectedFiles.isNotEmpty()) 16.dp else 12.dp
@@ -1302,7 +1193,7 @@ private fun PermissionDeniedDialog(
     val accentColor = Color(0xFF3DDAD7) // Teal accent
     val backgroundColor = Color(0xFF1E1E1E) // Dark surface
     val errorColor = Color(0xFFFF5A5A) // Warning/error
-    
+
     // Animation for dialog appearance
     var isVisible by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
@@ -1313,13 +1204,13 @@ private fun PermissionDeniedDialog(
         ),
         label = ""
     )
-    
+
     val alpha by animateFloatAsState(
         targetValue = if (isVisible) 1f else 0f,
         animationSpec = tween(300),
         label = ""
     )
-    
+
     // Warning pulse animation
     val infiniteTransition = rememberInfiniteTransition(label = "")
     val warningScale by infiniteTransition.animateFloat(
@@ -1331,7 +1222,7 @@ private fun PermissionDeniedDialog(
         ),
         label = ""
     )
-    
+
     // Glow animation
     val glowAlpha by infiniteTransition.animateFloat(
         initialValue = 0.2f,
@@ -1342,7 +1233,7 @@ private fun PermissionDeniedDialog(
         ),
         label = ""
     )
-    
+
     // Set animation to visible
     LaunchedEffect(Unit) {
         isVisible = true
@@ -1359,7 +1250,7 @@ private fun PermissionDeniedDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .wrapContentHeight()
-                .graphicsLayer { 
+                .graphicsLayer {
                     this.scaleX = scale
                     this.scaleY = scale
                     this.alpha = alpha
@@ -1432,9 +1323,9 @@ private fun PermissionDeniedDialog(
                             )
                         }
                     }
-                    
+
                     Spacer(modifier = Modifier.height(20.dp))
-                    
+
                     // Dialog title
                     Text(
                         text = "Permission Required",
@@ -1443,9 +1334,9 @@ private fun PermissionDeniedDialog(
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
                     )
-                    
+
                     Spacer(modifier = Modifier.height(12.dp))
-                    
+
                     // Dialog message
                     Text(
                         text = "We need storage permission to access documents for conversion. You can grant it in app settings.",
@@ -1454,9 +1345,9 @@ private fun PermissionDeniedDialog(
                         textAlign = TextAlign.Center,
                         lineHeight = 24.sp
                     )
-                    
+
                     Spacer(modifier = Modifier.height(28.dp))
-                    
+
                     // Settings button
                     Button(
                         onClick = onGoToSettings,
@@ -1476,18 +1367,18 @@ private fun PermissionDeniedDialog(
                             contentDescription = null,
                             modifier = Modifier.size(20.dp)
                         )
-                        
+
                         Spacer(modifier = Modifier.width(12.dp))
-                        
+
                         Text(
                             text = "Open Settings",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
-                    
+
                     // Close button
                     TextButton(
                         onClick = onClose,
@@ -1522,7 +1413,7 @@ private fun StoragePermissionRequest(
             modifier = Modifier.padding(32.dp)
         ) {
             val primaryColor = Color(0xFF4361EE)
-            
+
             // Animated icon
             val infiniteTransition = rememberInfiniteTransition(label = "")
             val scale by infiniteTransition.animateFloat(
@@ -1534,7 +1425,7 @@ private fun StoragePermissionRequest(
                 ),
                 label = ""
             )
-            
+
             Box(
                 modifier = Modifier
                     .size(140.dp)
@@ -1573,9 +1464,9 @@ private fun StoragePermissionRequest(
                     )
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(24.dp))
-            
+
             Text(
                 text = "Storage Permission Required",
                 fontSize = 22.sp,
@@ -1583,18 +1474,18 @@ private fun StoragePermissionRequest(
                 color = Color.White,
                 textAlign = TextAlign.Center
             )
-            
+
             Spacer(modifier = Modifier.height(12.dp))
-            
+
             Text(
                 text = "We need storage permission to access and convert your files.",
                 fontSize = 16.sp,
                 color = Color.White.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center
             )
-            
+
             Spacer(modifier = Modifier.height(24.dp))
-            
+
             Button(
                 onClick = onRequestPermission,
                 colors = ButtonDefaults.buttonColors(
@@ -1631,7 +1522,7 @@ private fun LoadingContent() {
 private fun EmptyFilesContent() {
     val primaryColor = Color(0xFF4361EE)
     val context = LocalContext.current
-    
+
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -1651,7 +1542,7 @@ private fun EmptyFilesContent() {
                 ),
                 label = ""
             )
-            
+
             Box(
                 modifier = Modifier
                     .size(140.dp)
@@ -1690,9 +1581,9 @@ private fun EmptyFilesContent() {
                     )
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(24.dp))
-            
+
             Text(
                 text = "No Files Found",
                 fontSize = 22.sp,
@@ -1700,22 +1591,22 @@ private fun EmptyFilesContent() {
                 color = Color.White,
                 textAlign = TextAlign.Center
             )
-            
+
             Spacer(modifier = Modifier.height(12.dp))
-            
+
             Text(
                 text = "We couldn't find any document files on your device.",
                 fontSize = 16.sp,
                 color = Color.White.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center
             )
-            
+
             Spacer(modifier = Modifier.height(24.dp))
-            
+
             // Refresh button
             val viewModel = hiltViewModel<FileConverterViewModel>()
             Button(
-                onClick = { 
+                onClick = {
                     viewModel.forceRefreshFiles(context)
                 },
                 colors = ButtonDefaults.buttonColors(
@@ -1736,9 +1627,9 @@ private fun EmptyFilesContent() {
                     tint = Color.White,
                     modifier = Modifier.size(18.dp)
                 )
-                
+
                 Spacer(modifier = Modifier.width(8.dp))
-                
+
                 Text(
                     text = "Refresh",
                     fontSize = 16.sp,
@@ -1746,9 +1637,9 @@ private fun EmptyFilesContent() {
                     color = Color.White
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             Text(
                 text = "You can also import documents from your device.",
                 fontSize = 14.sp,
@@ -1763,27 +1654,28 @@ private fun EmptyFilesContent() {
 private fun FileListContent(
     files: List<File>,
     selectedFiles: Set<File>,
-    onFileSelected: (File) -> Unit
+    onFileSelected: (File) -> Unit,
+    onBackClick: () -> Unit
 ) {
     val primaryColor = Color(0xFF4361EE)
     val cardColor = Color(0xFF242424)
-    
+
     Column {
         // Modern top app bar with updated design
         ModernTopAppBar(
             backgroundColor = Color(0xFF1E1E1E),
             primaryColor = primaryColor,
-            onBackClick = { /* Handle back */ },
+            onBackClick = onBackClick,
             onRefreshClick = { /* Handle refresh */ }
         )
-        
+
         // Selected files info with modern design
         SelectedFilesInfo(
             selectedCount = selectedFiles.size,
             primaryColor = primaryColor,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
         )
-        
+
         // Kullanıcıya uzun basış ipucu
         AnimatedVisibility(visible = files.isNotEmpty()) {
             Card(
@@ -1816,7 +1708,7 @@ private fun FileListContent(
                 }
             }
         }
-        
+
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
@@ -1824,7 +1716,7 @@ private fun FileListContent(
         ) {
             items(files) { file ->
                 val isSelected = selectedFiles.contains(file)
-                
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1862,7 +1754,7 @@ private fun FileListContent(
                                 "ppt", "pptx" -> R.drawable.ic_ppt
                                 else -> R.drawable.ic_file
                             }
-                            
+
                             Icon(
                                 painter = painterResource(id = iconRes),
                                 contentDescription = null,
@@ -1870,9 +1762,9 @@ private fun FileListContent(
                                 modifier = Modifier.size(24.dp)
                             )
                         }
-                        
+
                         Spacer(modifier = Modifier.width(16.dp))
-                        
+
                         Column(
                             modifier = Modifier.weight(1f)
                         ) {
@@ -1884,9 +1776,9 @@ private fun FileListContent(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
-                            
+
                             Spacer(modifier = Modifier.height(4.dp))
-                            
+
                             Row(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -1895,13 +1787,13 @@ private fun FileListContent(
                                     fontSize = 12.sp,
                                     color = Color.White.copy(alpha = 0.6f)
                                 )
-                                
+
                                 Text(
                                     text = " • ",
                                     fontSize = 12.sp,
                                     color = Color.White.copy(alpha = 0.6f)
                                 )
-                                
+
                                 Text(
                                     text = file.extension.uppercase(),
                                     fontSize = 12.sp,
@@ -1909,7 +1801,7 @@ private fun FileListContent(
                                 )
                             }
                         }
-                        
+
                         if (isSelected) {
                             Box(
                                 modifier = Modifier

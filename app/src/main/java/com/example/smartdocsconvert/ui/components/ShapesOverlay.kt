@@ -27,7 +27,6 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.smartdocsconvert.ui.viewmodel.ImageFilterViewModel
 
-// Shape data classes and enums
 data class ShapeItem(
     val type: ShapeType,
     val position: Offset = Offset.Zero,
@@ -66,19 +65,16 @@ fun ShapesOverlay(
     val isResizing by remember { mutableStateOf(false) }
     var showTextInput by remember { mutableStateOf(false) }
     var lastTapPosition by remember { mutableStateOf(Offset.Zero) }
-    
-    // Initialize shapes from ViewModel
+
     LaunchedEffect(initialShapes) {
         shapes = initialShapes
     }
 
-    // When shapes change, propagate to the caller
     LaunchedEffect(shapes) {
         onShapesChanged(shapes)
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        // Drawing area
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -105,16 +101,14 @@ fun ShapesOverlay(
                                     shapes = shapes + newShape
                                     viewModel.addShape(newShape)
                                 }
-                                ShapeType.BRUSH -> {} // Brush is handled separately
-                                null -> {} // Handle null case
+                                ShapeType.BRUSH -> {}
+                                else -> {}
                             }
                         }
                     }
                 }
         ) {
-            // Draw existing shapes
             Canvas(modifier = Modifier.fillMaxSize()) {
-                // Draw shapes
                 shapes.forEach { shape ->
                     withTransform({
                         translate(shape.position.x, shape.position.y)
@@ -182,14 +176,11 @@ fun ShapesOverlay(
                                     )
                                 }
                             }
-                            ShapeType.BRUSH -> {
-                                // Brush strokes are handled separately
-                            }
+                            ShapeType.BRUSH -> {}
                         }
                     }
                 }
-                
-                // Draw brush strokes
+
                 brushStrokes.forEach { stroke ->
                     if (stroke.points.size > 1) {
                         drawPath(
@@ -208,8 +199,7 @@ fun ShapesOverlay(
                         )
                     }
                 }
-                
-                // Draw current brush stroke
+
                 if (currentStroke.size > 1) {
                     drawPath(
                         path = Path().apply {
@@ -229,7 +219,6 @@ fun ShapesOverlay(
             }
         }
 
-        // Shape selection toolbar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -271,7 +260,6 @@ fun ShapesOverlay(
         }
     }
 
-    // Text input dialog
     if (showTextInput) {
         TextInputDialog(
             onTextEntered = { inputText ->
@@ -293,25 +281,19 @@ fun ShapesOverlay(
     }
 }
 
-// Helper functions
 private fun drawHeart(path: Path, center: Offset, size: Float) {
-    val width = size
-    val height = size
+    path.moveTo(center.x, center.y + size / 4)
 
-    path.moveTo(center.x, center.y + height / 4)
-    
-    // Left curve
     path.cubicTo(
-        center.x - width / 2, center.y - height / 4,
-        center.x - width / 2, center.y - height / 2,
-        center.x, center.y - height / 4
+        center.x - size / 2, center.y - size / 4,
+        center.x - size / 2, center.y - size / 2,
+        center.x, center.y - size / 4
     )
-    
-    // Right curve
+
     path.cubicTo(
-        center.x + width / 2, center.y - height / 2,
-        center.x + width / 2, center.y - height / 4,
-        center.x, center.y + height / 4
+        center.x + size / 2, center.y - size / 2,
+        center.x + size / 2, center.y - size / 4,
+        center.x, center.y + size / 4
     )
 }
 
@@ -340,11 +322,9 @@ private fun drawArrow(path: Path, start: Offset, size: Float) {
     val headLength = size * 0.2f
     val headWidth = size * 0.3f
 
-    // Shaft
     path.moveTo(start.x, start.y)
     path.lineTo(start.x + arrowLength, start.y)
 
-    // Head
     path.moveTo(start.x + arrowLength - headLength, start.y - headWidth)
     path.lineTo(start.x + arrowLength, start.y)
     path.lineTo(start.x + arrowLength - headLength, start.y + headWidth)

@@ -6,7 +6,6 @@ import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.navigation
 import androidx.navigation.navArgument
 import com.example.smartdocsconvert.ui.screens.HomeScreen
 import com.example.smartdocsconvert.ui.screens.file.ConvertFileScreen
@@ -97,7 +96,6 @@ fun NavGraph(
                     navController.navigateUp()
                 }, 
                 onNextClick = { selectedFiles ->
-                    // Convert list of Files to a comma-separated string of file paths
                     val filePathsString = selectedFiles.joinToString(",") { it.absolutePath }
                     navController.navigate(Screen.EditOptimize.createRoute(filePathsString))
                 }

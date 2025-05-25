@@ -57,24 +57,18 @@ fun MainImageEditor(
 ) {
     val cameraDistance = with(LocalDensity.current) { 8.dp.toPx() } * 10
 
-    // Calculate color matrix based on brightness and contrast
     val brightness = uiState.brightnessValues.getOrNull(uiState.currentImageIndex) ?: 1f
     val contrast = uiState.contrastValues.getOrNull(uiState.currentImageIndex) ?: 1f
     val filter = uiState.selectedFilters.getOrNull(uiState.currentImageIndex) ?: "Original"
-    val intensity = uiState.filterIntensityValues.getOrNull(uiState.currentImageIndex) ?: 0f
-    
-    // Direkt olarak matris değerlerini hesaplayalım
     val colorMatrix = createColorMatrix(brightness, contrast, filter)
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Images stack
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .clip(RectangleShape),
             contentAlignment = Alignment.Center
         ) {
-            // Previous image
             if (uiState.rotationY > 90f && uiState.currentImageIndex > 0) {
                 Image(
                     painter = rememberAsyncImagePainter(
@@ -100,7 +94,6 @@ fun MainImageEditor(
                 )
             }
 
-            // Current image
             Image(
                 painter = rememberAsyncImagePainter(
                     ImageRequest.Builder(LocalContext.current)
@@ -125,7 +118,6 @@ fun MainImageEditor(
             )
         }
 
-        // Navigation arrows and counter
         NavigationOverlay(
             currentIndex = uiState.currentImageIndex,
             totalImages = uiState.processedImageUris.size,
@@ -162,7 +154,6 @@ fun NavigationOverlay(
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // Left arrow for previous image
         if (currentIndex > 0) {
             IconButton(
                 onClick = onPreviousClick,
@@ -179,7 +170,6 @@ fun NavigationOverlay(
             }
         }
 
-        // Right arrow for next image
         if (currentIndex < totalImages - 1) {
             IconButton(
                 onClick = onNextClick,
@@ -195,8 +185,7 @@ fun NavigationOverlay(
                 )
             }
         }
-        
-        // Add shapes overlay when active feature is "shapes"
+
         if (showShapesOverlay && viewModel != null) {
             ShapesOverlay(
                 viewModel = viewModel,
@@ -204,7 +193,6 @@ fun NavigationOverlay(
             )
         }
 
-        // Image counter
         Text(
             text = "${currentIndex + 1}/$totalImages",
             color = Color.White,
@@ -230,7 +218,6 @@ fun AnimatedFeatureControls(
     onContrastChange: (Float) -> Unit,
     onFilterSelected: (String) -> Unit
 ) {
-    // Light/brightness controls
     AnimatedVisibility(visible = uiState.activeFeature == "light") {
         BrightnessContrastControls(
             brightness = uiState.brightnessValues.getOrNull(uiState.currentImageIndex) ?: 1f,
@@ -239,8 +226,7 @@ fun AnimatedFeatureControls(
             onContrastChange = onContrastChange
         )
     }
-    
-    // Filter selector
+
     AnimatedVisibility(visible = uiState.activeFeature == "filter") {
         FilterSelector(
             filters = listOf(
@@ -269,7 +255,6 @@ fun BrightnessContrastControls(
             .background(Color.Black.copy(alpha = 0.7f))
             .padding(16.dp)
     ) {
-        // Light control
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -306,7 +291,6 @@ fun BrightnessContrastControls(
             )
         }
 
-        // Contrast control
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -361,7 +345,6 @@ fun FilterSelector(
         contentPadding = PaddingValues(horizontal = 40.dp)
     ) {
         items(filters) { filter ->
-            // Animation states for filter items
             val rotation = remember { 
                 Animatable(if (filters.indexOf(filter) % 2 == 0) -15f else 15f) 
             }
@@ -370,7 +353,6 @@ fun FilterSelector(
                 Animatable(if (filters.indexOf(filter) % 2 == 0) 20f else -20f) 
             }
 
-            // Animation effects when filter selection changes
             LaunchedEffect(selectedFilter) {
                 if (filter == selectedFilter) {
                     launch {
@@ -431,7 +413,6 @@ fun FilterSelector(
                 }
             }
 
-            // Filter thumbnail item
             FilterThumbnailItem(
                 filter = filter,
                 isSelected = filter == selectedFilter,
@@ -465,7 +446,6 @@ fun FilterThumbnailItem(
             }
             .clickable(onClick = onClick)
     ) {
-        // Shadow effect
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -476,8 +456,6 @@ fun FilterThumbnailItem(
                     spotColor = Color.Black.copy(alpha = 0.5f)
                 )
         )
-        
-        // Create a preview image with the filter applied
         FilterPreviewImage(
             filter = filter,
             isSelected = isSelected
@@ -493,8 +471,7 @@ fun FilterPreviewImage(
     val viewModel = viewModel<ImageFilterViewModel>()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    
-    // Ensure we have images to work with
+
     val currentImageUri = remember(uiState.processedImageUris, uiState.currentImageIndex) {
         if (uiState.processedImageUris.isNotEmpty() && 
             uiState.currentImageIndex < uiState.processedImageUris.size) {
@@ -503,8 +480,7 @@ fun FilterPreviewImage(
             null
         }
     }
-    
-    // Use the simplest container style
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -519,27 +495,23 @@ fun FilterPreviewImage(
         contentAlignment = Alignment.Center
     ) {
         if (currentImageUri != null) {
-            // Apply filter to the thumbnail image
             val colorMatrix = remember(filter) {
                 createColorMatrix(1.0f, 1.0f, filter)
             }
-            
-            // Track loading state
+
             var isLoading by remember { mutableStateOf(true) }
             val painter = rememberAsyncImagePainter(
                 ImageRequest.Builder(context)
                     .data(currentImageUri)
-                    .size(128, 128) // Limit size to small thumbnail
-                    .placeholder(R.drawable.ic_image) // Use a placeholder
-                    .crossfade(true) // Smooth loading transition
-                    .memoryCacheKey("filter_preview_${filter}_${currentImageUri.hashCode()}") // Cache with unique key
+                    .size(128, 128)
+                    .placeholder(R.drawable.ic_image)
+                    .crossfade(true)
+                    .memoryCacheKey("filter_preview_${filter}_${currentImageUri.hashCode()}")
                     .build()
             )
-            
-            // Update loading state based on painter state
+
             isLoading = painter.state is AsyncImagePainter.State.Loading
-            
-            // Display the image with filter applied
+
             Image(
                 painter = painter,
                 contentDescription = filter,
@@ -547,8 +519,7 @@ fun FilterPreviewImage(
                 contentScale = ContentScale.Crop,
                 colorFilter = ColorFilter.colorMatrix(colorMatrix)
             )
-            
-            // Show loading indicator if still loading
+
             if (isLoading) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(24.dp),
@@ -556,8 +527,6 @@ fun FilterPreviewImage(
                     strokeWidth = 2.dp
                 )
             }
-            
-            // Filter name overlay
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -573,7 +542,6 @@ fun FilterPreviewImage(
                 )
             }
         } else {
-            // Fallback if no image is available
             Icon(
                 painter = painterResource(id = R.drawable.ic_image),
                 contentDescription = filter,
@@ -713,11 +681,9 @@ fun createColorMatrix(
     contrast: Float,
     filter: String,
 ): ColorMatrix {
-    // Contrast işlemi için scale ve translate değerlerini hesaplayalım
     val scale = contrast
     val translate = (-0.5f * scale + 0.5f) * 255f
-    
-    // Farklı filtreler için matris değerlerini ayarlayalım
+
     val values = when (filter) {
         "Original" -> floatArrayOf(
             brightness * scale, 0f, 0f, 0f, translate,
@@ -759,14 +725,10 @@ fun createColorMatrix(
             0f, 0f, 0f, 1f, 0f
         )
     }
-    
-    // Yeni ColorMatrix nesnesini oluşturalım
+
     return ColorMatrix(values)
 }
 
-/**
- * Function to animate image transition between indices
- */
 suspend fun animateImageTransition(
     currentIndex: Int,
     newIndex: Int,
@@ -774,8 +736,7 @@ suspend fun animateImageTransition(
     onImageSelected: (Int) -> Unit
 ) {
     val direction = if (newIndex > currentIndex) 1 else -1
-    
-    // Flip out current image
+
     animate(
         initialValue = 0f,
         targetValue = 90f * direction,
@@ -786,12 +747,10 @@ suspend fun animateImageTransition(
     ) { value, _ -> 
         onUpdateRotationY(value)
     }
-    
-    // Update current image index
+
     onImageSelected(newIndex)
     onUpdateRotationY(-90f * direction)
-    
-    // Flip in new image
+
     animate(
         initialValue = -90f * direction,
         targetValue = 0f,
@@ -813,7 +772,6 @@ fun autoEnhanceImage(
     viewModel: ImageFilterViewModel
 ) {
     try {
-        // Early return if no images or invalid index
         if (uiState.processedImageUris.isEmpty() || uiState.currentImageIndex >= uiState.processedImageUris.size) {
             Toast.makeText(
                 context,
@@ -831,10 +789,9 @@ fun autoEnhanceImage(
             }
 
         bitmap?.let { originalBitmap ->
-            // Calculate average brightness using sampling
             var totalBrightness = 0L
             var pixelCount = 0
-            val sampleStep = 4  // Sample every 4th pixel for faster processing
+            val sampleStep = 4
 
             for (x in 0 until originalBitmap.width step sampleStep) {
                 for (y in 0 until originalBitmap.height step sampleStep) {
@@ -848,44 +805,39 @@ fun autoEnhanceImage(
             }
 
             if (pixelCount == 0) {
-                // Avoid division by zero
                 return
             }
 
             val averageBrightness = totalBrightness.toFloat() / (pixelCount * 255f)
 
-            // Auto adjust brightness and contrast
             viewModel.setBrightness(
                 when {
-                    averageBrightness < 0.35f -> 1.4f  // Very dark image
-                    averageBrightness < 0.45f -> 1.3f  // Dark image
-                    averageBrightness > 0.65f -> 0.8f  // Very bright image
-                    averageBrightness > 0.55f -> 0.9f  // Bright image
-                    else -> 1.1f  // Normal image
+                    averageBrightness < 0.35f -> 1.4f
+                    averageBrightness < 0.45f -> 1.3f
+                    averageBrightness > 0.65f -> 0.8f
+                    averageBrightness > 0.55f -> 0.9f
+                    else -> 1.1f
                 }
             )
 
             viewModel.setContrast(
                 when {
-                    averageBrightness < 0.35f -> 1.3f  // Increase contrast for very dark images
-                    averageBrightness < 0.45f -> 1.2f  // Increase contrast for dark images
-                    averageBrightness > 0.65f -> 1.15f // Slight contrast for very bright images
-                    averageBrightness > 0.55f -> 1.1f  // Slight contrast for bright images
-                    else -> 1.15f  // Normal contrast
+                    averageBrightness < 0.35f -> 1.3f
+                    averageBrightness < 0.45f -> 1.2f
+                    averageBrightness > 0.65f -> 1.15f
+                    averageBrightness > 0.55f -> 1.1f
+                    else -> 1.15f
                 }
             )
 
-            // Apply color enhancement based on brightness
             viewModel.setFilter(
                 when {
-                    averageBrightness < 0.4f -> "Clarendon"  // More vibrant for dark images
-                    averageBrightness > 0.6f -> "Lark"       // Softer for bright images
-                    else -> "Reyes"                          // Balanced for normal images
+                    averageBrightness < 0.4f -> "Clarendon"
+                    averageBrightness > 0.6f -> "Lark"
+                    else -> "Reyes"
                 }
             )
             viewModel.setFilterIntensity(0.4f)
-
-            // Clean up
             originalBitmap.recycle()
         }
     } catch (e: Exception) {

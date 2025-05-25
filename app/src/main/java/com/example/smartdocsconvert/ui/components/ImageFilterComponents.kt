@@ -1,7 +1,6 @@
 package com.example.smartdocsconvert.ui.components
 
 import android.net.Uri
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -27,7 +26,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -46,7 +44,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -192,8 +189,7 @@ fun ImageThumbnails(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
-                
-                // Page number indicator
+
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -532,17 +528,12 @@ fun DownloadOptionsDialog(
     onSaveAsImage: () -> Unit,
     onSaveAsPdf: () -> Unit
 ) {
-    // Dialog durumunu takip eden state değişkenleri
     val dialogOffset = remember { Animatable(if (visible) 0f else 300f) }
     val dialogAlpha = remember { Animatable(if (visible) 1f else 0f) }
-    
-    // Dialog görünürlüğünü kontrol eden state
     var isDialogVisible by remember { mutableStateOf(visible) }
-    
-    // visible değişimi ile dialog durumunu güncelleme
+
     LaunchedEffect(visible) {
         if (visible) {
-            // Dialog gösterilecekse, önce görünür yapıp sonra animasyonları başlat
             isDialogVisible = true
             dialogOffset.animateTo(
                 targetValue = 0f,
@@ -556,21 +547,18 @@ fun DownloadOptionsDialog(
                 animationSpec = tween(300)
             )
         } else {
-            // Dialog kapatılacaksa, hızlı animasyonla kapat
             dialogOffset.animateTo(
                 targetValue = 300f,
-                animationSpec = tween(150) // Daha hızlı kapanma animasyonu
+                animationSpec = tween(150)
             )
             dialogAlpha.animateTo(
                 targetValue = 0f,
-                animationSpec = tween(150) // Daha hızlı kapanma animasyonu
+                animationSpec = tween(150)
             )
-            // Animasyon bitince dialogi tamamen kaldır
             isDialogVisible = false
         }
     }
-    
-    // Dialog sadece görünür durumdaysa çizilsin
+
     if (isDialogVisible) {
         Box(
             modifier = Modifier
@@ -587,9 +575,9 @@ fun DownloadOptionsDialog(
                         alpha = dialogAlpha.value
                         scaleX = 0.8f + (0.2f * dialogAlpha.value)
                         scaleY = 0.8f + (0.2f * dialogAlpha.value)
-                        translationY = dialogOffset.value // Aşağıdan yukarı kayma animasyonu
+                        translationY = dialogOffset.value
                     }
-                    .clickable(enabled = false) { /* Prevent click propagation */ },
+                    .clickable(enabled = false) {  },
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = Color.White
@@ -613,7 +601,6 @@ fun DownloadOptionsDialog(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        // Image download option
                         DownloadOptionCard(
                             icon = R.drawable.ic_image,
                             text = "Görüntü",
@@ -623,8 +610,7 @@ fun DownloadOptionsDialog(
                                 onSaveAsImage()
                             }
                         )
-                        
-                        // PDF download option
+
                         DownloadOptionCard(
                             icon = R.drawable.ic_pdf,
                             text = "PDF",
@@ -722,20 +708,16 @@ fun DownloadAnimation(
     val alphaAnim = remember { Animatable(0f) }
     val scaleAnim = remember { Animatable(0.5f) }
     val rotationAnim = remember { Animatable(0f) }
-    
-    // Animasyon durumunu takip eden state
     var isAnimationVisible by remember { mutableStateOf(visible) }
     
     LaunchedEffect(visible) {
         if (visible) {
             isAnimationVisible = true
-            
-            // Reset all animations
+
             alphaAnim.snapTo(0f)
             scaleAnim.snapTo(0.5f)
             rotationAnim.snapTo(0f)
-            
-            // Start animations in parallel
+
             launch {
                 alphaAnim.animateTo(
                     targetValue = 1f,
@@ -746,8 +728,7 @@ fun DownloadAnimation(
                     targetValue = 0f,
                     animationSpec = tween(300)
                 )
-                
-                // Animasyon bittikten sonra görünürlüğü kapat
+
                 isAnimationVisible = false
             }
             
@@ -771,7 +752,6 @@ fun DownloadAnimation(
                 )
             }
         } else {
-            // Eğer visible = false olursa, hızlıca kapat
             alphaAnim.animateTo(
                 targetValue = 0f,
                 animationSpec = tween(150)
@@ -899,14 +879,10 @@ fun DownloadConfirmationDialog(
     downloadAll: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    // Dialog animation states
     val dialogOffset = remember { Animatable(if (visible) 0f else 300f) }
     val dialogAlpha = remember { Animatable(if (visible) 1f else 0f) }
-    
-    // Track dialog visibility
     var isDialogVisible by remember { mutableStateOf(visible) }
-    
-    // Update dialog state when visibility changes
+
     LaunchedEffect(visible) {
         isDialogVisible = visible
         if (visible) {
@@ -958,12 +934,10 @@ fun DownloadConfirmationDialog(
                         .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Title text based on download type
                     val titleText = if (downloadType == "pdf") "PDF İndirme" else "Görüntü İndirme"
                     val iconRes = if (downloadType == "pdf") R.drawable.ic_pdf else R.drawable.ic_image
                     val iconColor = if (downloadType == "pdf") Color(0xFFE91E63) else Color(0xFF4CAF50)
-                    
-                    // Title with icon
+
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(bottom = 24.dp)
@@ -983,8 +957,7 @@ fun DownloadConfirmationDialog(
                             color = Color(0xFF333333)
                         )
                     }
-                    
-                    // File information card with editable filename
+
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1007,39 +980,32 @@ fun DownloadConfirmationDialog(
                                 ),
                                 color = Color(0xFF505050)
                             )
-                            
-                            // Calculate file extension to keep
+
                             val fileExtension = remember(filename) {
                                 filename.substringAfterLast(".", "")
                             }
-                            
-                            // Extract base filename without extension for editing
+
                             val baseFilename = remember(filename) {
                                 filename.substringBeforeLast(".", "")
                             }
-                            
-                            // Add TextField for editing the filename
+
                             var textFieldValue by remember(baseFilename) { mutableStateOf(baseFilename) }
                             val focusRequester = remember { FocusRequester() }
-                            
-                            // Focus the text field when dialog appears
+
                             LaunchedEffect(Unit) {
-                                delay(300) // Short delay to ensure dialog is visible
+                                delay(300)
                                 focusRequester.requestFocus()
                             }
                             
                             OutlinedTextField(
                                 value = textFieldValue,
                                 onValueChange = { newValue ->
-                                    // Update local state first for immediate feedback
                                     textFieldValue = newValue
-                                    
-                                    // Then update the parent state with sanitized value and extension
+
                                     val sanitizedValue = newValue.replace("[\\\\/:*?\"<>|]".toRegex(), "_")
                                     if (sanitizedValue.isNotEmpty()) {
                                         onFilenameChanged("$sanitizedValue.$fileExtension")
                                     } else {
-                                        // If empty, use a default name to prevent errors
                                         onFilenameChanged("document.$fileExtension")
                                     }
                                 },
@@ -1108,8 +1074,7 @@ fun DownloadConfirmationDialog(
                     }
                     
                     Spacer(modifier = Modifier.height(24.dp))
-                    
-                    // Add "Download All Images" checkbox if onDownloadAllChanged is provided (available for both image and PDF)
+
                     if (onDownloadAllChanged != null) {
                         Row(
                             modifier = Modifier
@@ -1126,8 +1091,7 @@ fun DownloadConfirmationDialog(
                                     uncheckedColor = Color(0xFF757575)
                                 )
                             )
-                            
-                            // Different text based on downloadType
+
                             val labelText = if (downloadType == "pdf") {
                                 "Tüm resimleri PDF olarak birleştir"
                             } else {
@@ -1142,13 +1106,11 @@ fun DownloadConfirmationDialog(
                             )
                         }
                     }
-                    
-                    // Action buttons
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        // Cancel button
                         OutlinedButton(
                             onClick = onCancel,
                             modifier = Modifier.weight(1f),
@@ -1163,8 +1125,7 @@ fun DownloadConfirmationDialog(
                                 fontWeight = FontWeight.Medium
                             )
                         }
-                        
-                        // Confirm button
+
                         Button(
                             onClick = onConfirm,
                             modifier = Modifier.weight(1f),
