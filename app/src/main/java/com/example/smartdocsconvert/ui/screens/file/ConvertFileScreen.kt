@@ -79,30 +79,40 @@ fun ConvertFileScreen(
         hiltEntryPoint.permissionHelper()
     }
 
-    val primaryColor = Color(0xFF4361EE) // Modern blue
-    val accentColor = Color(0xFF3DDAD7) // Teal accent
-    val darkBackground = Color(0xFF121212) // Deeper dark
-    val surfaceColor = Color(0xFF1E1E1E) // Dark surface
-    val errorColor = Color(0xFFFF5A5A) // Warning/error
+    val primaryColor = Color(0xFF4361EE)
+    val accentColor = Color(0xFF3DDAD7)
+    val darkBackground = Color(0xFF121212)
+    val surfaceColor = Color(0xFF1E1E1E)
+    val errorColor = Color(0xFFFF5A5A)
 
     // App state
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Permission state (now handled in UI)
-    var hasStoragePermission by remember { mutableStateOf(permissionHelper.hasStoragePermissions()) }
+    // Permission state
     var showPermissionRationale by remember { mutableStateOf(false) }
     var permissionRequestCount by remember { mutableStateOf(0) }
 
-    // Check permissions on launch
-    LaunchedEffect(Unit) {
-        hasStoragePermission = permissionHelper.hasStoragePermissions()
+    // İzin isteme launcher'ı
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.values.all { it }
+        permissionRequestCount++
+
+        if (!allGranted && permissionRequestCount > 1) {
+            showPermissionRationale = true
+        } else if (allGranted) {
+            viewModel.refreshFiles(context)
+        }
     }
 
-    // Refresh files when permission granted
-    LaunchedEffect(hasStoragePermission) {
-        if (hasStoragePermission) {
-            viewModel.refreshFiles(context)
+    // Document picker launcher
+    val documentPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            viewModel.handleSelectedDocuments(context, uris)
         }
     }
 
@@ -113,20 +123,6 @@ fun ConvertFileScreen(
                 message = it,
                 duration = SnackbarDuration.Short
             )
-        }
-    }
-
-    // İzin isteme launcher'ı
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        val allGranted = permissions.values.all { it }
-        permissionRequestCount++
-        hasStoragePermission = allGranted
-
-        // Show rationale dialog if permissions are denied and this isn't the first request
-        if (!allGranted && permissionRequestCount > 1) {
-            showPermissionRationale = true
         }
     }
 
@@ -149,7 +145,7 @@ fun ConvertFileScreen(
             .fillMaxSize()
             .background(darkBackground)
     ) {
-        // Decorative elements with blur effect for depth
+        // Decorative elements
         Box(
             modifier = Modifier
                 .size(350.dp)
@@ -187,38 +183,11 @@ fun ConvertFileScreen(
                 )
         )
 
-        // Scaffold ile Snackbar hostu ekle
         Scaffold(
             containerColor = Color.Transparent,
             contentColor = Color.White,
             snackbarHost = {
-                SnackbarHost(
-                    hostState = snackbarHostState,
-                    modifier = Modifier.padding(16.dp),
-                    snackbar = { data ->
-                        Snackbar(
-                            modifier = Modifier
-                                .padding(16.dp)
-                                .border(
-                                    width = 1.dp,
-                                    color = errorColor.copy(alpha = 0.3f),
-                                    shape = RoundedCornerShape(8.dp)
-                                ),
-                            containerColor = Color(0xFF422222),
-                            contentColor = Color.White,
-                            action = {
-                                TextButton(onClick = { data.dismiss() }) {
-                                    Text(
-                                        text = "OK",
-                                        color = Color.White
-                                    )
-                                }
-                            }
-                        ) {
-                            Text(text = data.visuals.message)
-                        }
-                    }
-                )
+                SnackbarHost(hostState = snackbarHostState)
             }
         ) { innerPadding ->
             Box(
@@ -228,7 +197,7 @@ fun ConvertFileScreen(
             ) {
                 // İçerik
                 when {
-                    !hasStoragePermission -> {
+                    !permissionHelper.hasStoragePermissions() -> {
                         StoragePermissionRequest(
                             onRequestPermission = {
                                 permissionLauncher.launch(permissionHelper.getRequiredPermissions())
@@ -251,7 +220,7 @@ fun ConvertFileScreen(
                     }
                 }
 
-                // Bottom action buttons in a fixed position at the bottom
+                // Bottom action buttons
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -1522,6 +1491,16 @@ private fun LoadingContent() {
 private fun EmptyFilesContent() {
     val primaryColor = Color(0xFF4361EE)
     val context = LocalContext.current
+    val viewModel = hiltViewModel<FileConverterViewModel>()
+    
+    // Document picker launcher
+    val documentPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            viewModel.handleSelectedDocuments(context, uris)
+        }
+    }
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -1585,7 +1564,7 @@ private fun EmptyFilesContent() {
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "No Files Found",
+                text = "Select Documents",
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
@@ -1595,7 +1574,7 @@ private fun EmptyFilesContent() {
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "We couldn't find any document files on your device.",
+                text = "Choose documents from your device to convert",
                 fontSize = 16.sp,
                 color = Color.White.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center
@@ -1603,8 +1582,44 @@ private fun EmptyFilesContent() {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Refresh button
-            val viewModel = hiltViewModel<FileConverterViewModel>()
+            // Document picker button
+            Button(
+                onClick = {
+                    documentPickerLauncher.launch(arrayOf(
+                        "application/pdf",
+                        "application/msword",
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        "application/vnd.ms-excel",
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        "application/vnd.ms-powerpoint",
+                        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                        "text/plain"
+                    ))
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = primaryColor
+                ),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_file),
+                    contentDescription = "Select Files",
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = "Select Documents",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Refresh button (as secondary action)
             Button(
                 onClick = {
                     viewModel.forceRefreshFiles(context)
@@ -1614,8 +1629,8 @@ private fun EmptyFilesContent() {
                 ),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
-                    .padding(horizontal = 32.dp)
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .height(48.dp),
                 border = BorderStroke(
                     width = 1.dp,
                     color = Color.White.copy(alpha = 0.1f)
@@ -1627,11 +1642,9 @@ private fun EmptyFilesContent() {
                     tint = Color.White,
                     modifier = Modifier.size(18.dp)
                 )
-
                 Spacer(modifier = Modifier.width(8.dp))
-
                 Text(
-                    text = "Refresh",
+                    text = "Scan Device",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
                     color = Color.White
@@ -1641,7 +1654,7 @@ private fun EmptyFilesContent() {
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "You can also import documents from your device.",
+                text = "Select documents directly or scan your device for compatible files",
                 fontSize = 14.sp,
                 color = Color.White.copy(alpha = 0.5f),
                 textAlign = TextAlign.Center

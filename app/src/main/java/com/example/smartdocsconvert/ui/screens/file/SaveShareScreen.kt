@@ -7,7 +7,6 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -15,7 +14,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.*
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,7 +26,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -46,6 +43,9 @@ import android.provider.DocumentsContract
 import androidx.documentfile.provider.DocumentFile
 import com.example.smartdocsconvert.R
 import java.io.FileInputStream
+import android.content.Context
+import android.widget.Toast
+import androidx.core.content.FileProvider
 
 @SuppressLint("NewApi")
 @Composable
@@ -133,10 +133,10 @@ fun SaveShareScreen(
                 context.contentResolver.query(docUri, null, null, null, null)?.use { cursor ->
                     if (cursor.moveToFirst()) {
                         val displayNameIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
-                        if (displayNameIndex != -1) {
-                            selectedLocationDisplayName = cursor.getString(displayNameIndex)
+                        selectedLocationDisplayName = if (displayNameIndex != -1) {
+                            cursor.getString(displayNameIndex)
                         } else {
-                            selectedLocationDisplayName = "Seçilen Klasör"
+                            "Seçilen Klasör"
                         }
                     }
                 }
@@ -156,11 +156,10 @@ fun SaveShareScreen(
             SnackbarHost(hostState = snackbarHostState)
         },
         topBar = {
-            ModernTopAppBar(
+            3.ModernTopAppBar(
                 backgroundColor = surfaceColor,
                 primaryColor = primaryColor,
-                onBackClick = onBackClick,
-                currentStep = 3
+                onBackClick = onBackClick
             )
         },
         bottomBar = {
@@ -228,7 +227,7 @@ fun SaveShareScreen(
                 ShareOptionsCard(
                     cardColor = cardColor,
                     primaryColor = primaryColor,
-                    onShareClick = { /* TODO: Implement share logic */ }
+                    files = optimizedFiles // Yeni parametre ekledim
                 )
             }
             
@@ -399,8 +398,10 @@ private fun SaveOptionsCard(
 private fun ShareOptionsCard(
     cardColor: Color,
     primaryColor: Color,
-    onShareClick: () -> Unit
+    files: List<File>
 ) {
+    val context = LocalContext.current
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = cardColor),
@@ -419,7 +420,9 @@ private fun ShareOptionsCard(
             Spacer(modifier = Modifier.height(16.dp))
             
             Button(
-                onClick = onShareClick,
+                onClick = {
+                    shareFiles(context, files)
+                },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = primaryColor
@@ -436,6 +439,34 @@ private fun ShareOptionsCard(
                 Text("Dosyaları Paylaş")
             }
         }
+    }
+}
+
+private fun shareFiles(context: Context, files: List<File>) {
+    try {
+        val uris = files.map { file ->
+            FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.provider",
+                file
+            )
+        }
+
+        val intent = Intent().apply {
+            action = Intent.ACTION_SEND_MULTIPLE
+            type = "*/*"
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(uris))
+        }
+
+        val shareIntent = Intent.createChooser(intent, "Dosyaları Paylaş")
+        context.startActivity(shareIntent)
+    } catch (e: Exception) {
+        Toast.makeText(
+            context,
+            "Paylaşma hatası: ${e.localizedMessage}",
+            Toast.LENGTH_SHORT
+        ).show()
     }
 }
 
@@ -546,11 +577,10 @@ private fun formatTotalSize(files: List<File>): String {
 }
 
 @Composable
-private fun ModernTopAppBar(
+private fun Int.ModernTopAppBar(
     backgroundColor: Color,
     primaryColor: Color,
-    onBackClick: () -> Unit,
-    currentStep: Int
+    onBackClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -612,26 +642,24 @@ private fun ModernTopAppBar(
                 .weight(1f),
             contentAlignment = Alignment.Center
         ) {
-            ModernProgressTracker(
+            3.ModernProgressTracker(
                 modifier = Modifier
                     .padding(horizontal = 16.dp)
                     .graphicsLayer {
                         alpha = 0.98f
                     },
                 primaryColor = primaryColor,
-                currentStep = currentStep,
-                totalSteps = 3
+                currentStep = this@ModernTopAppBar
             )
         }
     }
 }
 
 @Composable
-private fun ModernProgressTracker(
+private fun Int.ModernProgressTracker(
     modifier: Modifier = Modifier,
     primaryColor: Color,
-    currentStep: Int,
-    totalSteps: Int
+    currentStep: Int
 ) {
     val lineWidth = 70.dp
     
@@ -714,7 +742,7 @@ private fun ModernProgressTracker(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                repeat(totalSteps) { index ->
+                repeat(this@ModernProgressTracker) { index ->
                     val stepNumber = index + 1
                     val isActive = stepNumber == currentStep
                     val isCompleted = stepNumber < currentStep
@@ -728,7 +756,7 @@ private fun ModernProgressTracker(
                     )
                     
                     // Connector line between steps
-                    if (index < totalSteps - 1) {
+                    if (index < this@ModernProgressTracker - 1) {
                         Box(
                             modifier = Modifier
                                 .width(lineWidth)

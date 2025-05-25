@@ -1,6 +1,8 @@
 package com.example.smartdocsconvert.ui.viewmodel
 
 import android.content.Context
+import android.net.Uri
+import android.provider.OpenableColumns
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -27,15 +29,62 @@ class FileConverterViewModel @Inject constructor(
     
     private var fileLoadingJob: Job? = null
 
-    fun toggleFileSelection(file: File) {
-        val currentSelected = _uiState.value.selectedFiles
-        val newSelected = if (currentSelected.contains(file)) {
-            currentSelected - file
-        } else {
-            currentSelected + file
-        }
+    fun handleSelectedDocuments(context: Context, uris: List<Uri>) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            
+            try {
+                val files = uris.mapNotNull { uri ->
+                    // Get the document file from URI
+                    val fileName = getFileName(context, uri)
+                    if (fileName != null) {
+                        // Create a temporary file in the cache directory
+                        val tempFile = File(context.cacheDir, fileName)
+                        
+                        // Copy the content to the temporary file
+                        context.contentResolver.openInputStream(uri)?.use { input ->
+                            tempFile.outputStream().use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                        tempFile
+                    } else null
+                }
 
-        _uiState.update { it.copy(selectedFiles = newSelected) }
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        files = (currentState.files + files).distinct(),
+                        isLoading = false,
+                        lastError = null
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(
+                    isLoading = false,
+                    lastError = "Failed to process selected documents: ${e.message}"
+                ) }
+            }
+        }
+    }
+
+    private fun getFileName(context: Context, uri: Uri): String? {
+        return context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            cursor.moveToFirst()
+            cursor.getString(nameIndex)
+        }
+    }
+
+    fun toggleFileSelection(file: File) {
+        _uiState.update { currentState ->
+            val newSelectedFiles = currentState.selectedFiles.toMutableSet()
+            if (newSelectedFiles.contains(file)) {
+                newSelectedFiles.remove(file)
+            } else {
+                newSelectedFiles.add(file)
+            }
+            currentState.copy(selectedFiles = newSelectedFiles)
+        }
     }
 
     fun refreshFiles(context: Context) {
@@ -56,20 +105,49 @@ class FileConverterViewModel @Inject constructor(
     }
 
     fun forceRefreshFiles(context: Context) {
-        fileLoadingJob?.cancel()
-        
-        fileLoadingJob = viewModelScope.launch {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            
             try {
-                _uiState.update { it.copy(isLoading = true, lastError = null) }
-                
-                val files = forceRefreshFilesUseCase(context)
-                
-                _uiState.update { it.copy(files = files, isLoading = false) }
-                
+                // Scan both external storage and cache directory
+                val externalFiles = scanExternalStorage(context)
+                val cacheFiles = context.cacheDir.listFiles()?.filter { 
+                    it.isFile && isDocumentFile(it)
+                } ?: emptyList()
+
+                _uiState.update { it.copy(
+                    files = (externalFiles + cacheFiles).distinct(),
+                    isLoading = false,
+                    lastError = null
+                ) }
             } catch (e: Exception) {
-                _uiState.update { it.copy(lastError = e.message, isLoading = false) }
+                _uiState.update { it.copy(
+                    isLoading = false,
+                    lastError = "Failed to refresh files: ${e.message}"
+                ) }
             }
         }
+    }
+    
+    private fun scanExternalStorage(context: Context): List<File> {
+        return try {
+            val externalDirs = context.getExternalFilesDirs(null)
+            externalDirs.filterNotNull().flatMap { dir ->
+                dir.walkTopDown()
+                    .filter { it.isFile && isDocumentFile(it) }
+                    .toList()
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun isDocumentFile(file: File): Boolean {
+        val extension = file.extension.lowercase()
+        return extension in setOf(
+            "pdf", "doc", "docx", "xls", "xlsx",
+            "ppt", "pptx", "txt", "rtf", "odt"
+        )
     }
     
     override fun onCleared() {
@@ -83,4 +161,6 @@ data class FileConverterUiState(
     val selectedFiles: Set<File> = emptySet(),
     val isLoading: Boolean = false,
     val lastError: String? = null
-)
+) {
+    val hasFiles: Boolean get() = files.isNotEmpty()
+}

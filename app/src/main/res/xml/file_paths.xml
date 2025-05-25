@@ -2,7 +2,7 @@
 <paths>
     <!-- External storage paths -->
     <external-path
-        name="external_files"
+        name="external"
         path="." />
     
     <!-- Cache directories -->
@@ -12,7 +12,7 @@
     
     <!-- External files paths -->
     <external-files-path
-        name="external_files_path"
+        name="external_files"
         path="." />
         
     <!-- External pictures directory -->
@@ -29,4 +29,14 @@
     <external-files-path
         name="smartdocs_images"
         path="Pictures/SmartDocsConvert" />
+    
+    <!-- External cache directory -->
+    <external-cache-path
+        name="external_cache"
+        path="." />
+    
+    <!-- Files path -->
+    <files-path
+        name="files"
+        path="." />
 </paths> 
