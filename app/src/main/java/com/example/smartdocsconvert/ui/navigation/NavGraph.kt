@@ -6,15 +6,18 @@ import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.navigation
 import androidx.navigation.navArgument
 import com.example.smartdocsconvert.ui.screens.HomeScreen
 import com.example.smartdocsconvert.ui.screens.file.ConvertFileScreen
 import com.example.smartdocsconvert.ui.screens.file.EditOptimizeScreen
+import com.example.smartdocsconvert.ui.screens.file.SaveShareScreen
 import com.example.smartdocsconvert.ui.screens.image.FilterScreen
 import com.example.smartdocsconvert.ui.screens.image.SelectPermissionsScreen
 import com.example.smartdocsconvert.ui.screens.image.SelectedImageScreen
 import java.io.File
 import java.net.URLDecoder
+import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
 @Composable
@@ -26,11 +29,9 @@ fun NavGraph(
     ) {
         composable(Screen.Home.route) {
             HomeScreen(onOpenFile = {
-                navController.navigate(Screen.FileConverter.route){
-                }
+                navController.navigate(Screen.FileConverter.route)
             }, onOpenGallery = {
-                navController.navigate(Screen.SelectPermissions.route){
-                }
+                navController.navigate(Screen.SelectPermissions.route)
             },
                 navController = navController)
         }
@@ -125,15 +126,41 @@ fun NavGraph(
                     navController.navigateUp()
                 },
                 onNextClick = { optimizedFiles ->
-                    // Burada üçüncü adıma (Save & Share) geçiş yapılacak
-                    // Şimdilik ana sayfaya dönelim
+                    navController.navigate(Screen.SaveShare.createRoute(optimizedFiles))
+                },
+                selectedFiles = selectedFiles
+            )
+        }
+
+        composable(
+            route = "${Screen.SaveShare.route}/{optimizedFiles}",
+            arguments = listOf(
+                navArgument("optimizedFiles") {
+                    type = NavType.StringType
+                }
+            )
+        ) { backStackEntry ->
+            val optimizedFilesString = backStackEntry.arguments?.getString("optimizedFiles")
+            val decodedPaths = optimizedFilesString?.let {
+                URLDecoder.decode(it, StandardCharsets.UTF_8.toString())
+            } ?: ""
+            
+            val optimizedFiles = decodedPaths.split(",").map { path ->
+                File(path)
+            }
+            
+            SaveShareScreen(
+                onBackClick = {
+                    navController.navigateUp()
+                },
+                onFinish = {
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Home.route) {
                             inclusive = true
                         }
                     }
                 },
-                selectedFiles = selectedFiles
+                optimizedFiles = optimizedFiles
             )
         }
     }

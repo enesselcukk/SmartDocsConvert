@@ -1,6 +1,5 @@
 package com.example.smartdocsconvert.ui.screens.file
 
-
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
@@ -9,7 +8,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -28,7 +26,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -36,49 +33,59 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.smartdocsconvert.R
-import com.example.smartdocsconvert.ui.components.LoadingAnimation
-import com.example.smartdocsconvert.util.FileUtils
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import java.io.File
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.smartdocsconvert.domain.model.EditOptimizeEvent
+import com.example.smartdocsconvert.domain.model.EditOptimizeState
+import com.example.smartdocsconvert.ui.viewmodel.EditOptimizeViewModel
 
 @Composable
 fun EditOptimizeScreen(
     onBackClick: () -> Unit,
     onNextClick: (List<File>) -> Unit,
-    selectedFiles: List<File>
+    selectedFiles: List<File>,
+    viewModel: EditOptimizeViewModel = hiltViewModel()
 ) {
-    val primaryColor = Color(0xFF4361EE) // Modern blue
-    val accentColor = Color(0xFF3DDAD7) // Teal accent
-    val darkBackground = Color(0xFF121212) // Deeper dark
-    val surfaceColor = Color(0xFF1E1E1E) // Dark surface
-    val errorColor = Color(0xFFFF5A5A) // Warning/error
+    val state by viewModel.state.collectAsState()
+    
+    // Initialize files if needed
+    LaunchedEffect(selectedFiles) {
+        viewModel.initializeFiles(selectedFiles)
+    }
+
+    EditOptimizeContent(
+        state = state,
+        onEvent = viewModel::onEvent,
+        onBackClick = { onBackClick() },
+        onNextClick = { 
+            onNextClick(state.files)
+        }
+    )
+}
+
+@Composable
+private fun EditOptimizeContent(
+    state: EditOptimizeState,
+    onEvent: (EditOptimizeEvent) -> Unit,
+    onBackClick: () -> Unit,
+    onNextClick: () -> Unit
+) {
+    val primaryColor = Color(0xFF4361EE)
+    val accentColor = Color(0xFF3DDAD7)
+    val darkBackground = Color(0xFF121212)
+    val surfaceColor = Color(0xFF1E1E1E)
     val cardColor = Color(0xFF242424)
     
-    // App state
-    val snackbarHostState = remember { SnackbarHostState() }
-    val coroutineScope = rememberCoroutineScope()
-    
-    // Selected file for editing
-    var currentEditingFileIndex by remember { mutableIntStateOf(0) }
-    var optimizedFiles by remember { mutableStateOf(selectedFiles.toList()) }
-    
-    // File optimization options
-    var qualityLevel by remember { mutableStateOf(80) } // 0-100
-    var compressionEnabled by remember { mutableStateOf(true) }
-    var renameDialogVisible by remember { mutableStateOf(false) }
-    var newFileName by remember { mutableStateOf("") }
-    
-    // Main screen structure
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(darkBackground)
     ) {
-        // Decorative elements with blur effect for depth
+        // Decorative elements
         Box(
             modifier = Modifier
                 .size(350.dp)
@@ -114,13 +121,12 @@ fun EditOptimizeScreen(
                 )
         )
         
-        // Scaffold ile Snackbar hostu ekle
         Scaffold(
             containerColor = Color.Transparent,
             contentColor = Color.White,
             snackbarHost = { 
                 SnackbarHost(
-                    hostState = snackbarHostState,
+                    hostState = remember { SnackbarHostState() },
                     modifier = Modifier.padding(16.dp),
                     snackbar = { data ->
                         Snackbar(
@@ -128,7 +134,7 @@ fun EditOptimizeScreen(
                                 .padding(16.dp)
                                 .border(
                                     width = 1.dp,
-                                    color = errorColor.copy(alpha = 0.3f),
+                                    color = Color(0xFFFF5A5A).copy(alpha = 0.3f),
                                     shape = RoundedCornerShape(8.dp)
                                 ),
                             containerColor = Color(0xFF422222),
@@ -146,137 +152,77 @@ fun EditOptimizeScreen(
                         }
                     }
                 )
+            },
+            bottomBar = {
+                if (state.hasFiles) {
+                    ImprovedBottomButtons(
+                        onNextClick = onNextClick,
+                        primaryColor = primaryColor,
+                        backgroundColor = surfaceColor
+                    )
+                }
             }
         ) { innerPadding ->
-            Box(
+            Column(
                 modifier = Modifier
-                    .padding(innerPadding)
                     .fillMaxSize()
+                    .padding(innerPadding)
             ) {
-                Column {
-                    // Modern top app bar with progress tracker
-                    ModernTopAppBar(
-                        backgroundColor = Color(0xFF1E1E1E),
+                ModernTopAppBar(
+                    backgroundColor = surfaceColor,
+                    primaryColor = primaryColor,
+                    onBackClick = onBackClick
+                )
+
+                if (state.hasFiles) {
+                    FileEditorContent(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(bottom = 80.dp),
+                        state = state,
+                        onEvent = onEvent,
+                        primaryColor = primaryColor,
+                        cardColor = cardColor
+                    )
+                } else {
+                    EmptyStateContent(
                         primaryColor = primaryColor,
                         onBackClick = onBackClick
                     )
-                    
-                    // Main content - file editor and options
-                    if (selectedFiles.isNotEmpty()) {
-                        FileEditorContent(
-                            files = optimizedFiles,
-                            currentFileIndex = currentEditingFileIndex,
-                            onFileSelect = { currentEditingFileIndex = it },
-                            qualityLevel = qualityLevel,
-                            onQualityChange = { qualityLevel = it },
-                            compressionEnabled = compressionEnabled,
-                            onCompressionToggle = { compressionEnabled = it },
-                            onRenameClick = { 
-                                newFileName = optimizedFiles[currentEditingFileIndex].name
-                                renameDialogVisible = true 
-                            },
-                            primaryColor = primaryColor,
-                            cardColor = cardColor
-                        )
-                    } else {
-                        // Error state - no files selected
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.padding(32.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Edit,
-                                    contentDescription = null,
-                                    tint = primaryColor,
-                                    modifier = Modifier.size(64.dp)
-                                )
-                                
-                                Spacer(modifier = Modifier.height(16.dp))
-                                
-                                Text(
-                                    text = "Düzenlenecek dosya bulunamadı",
-                                    color = Color.White,
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    textAlign = TextAlign.Center
-                                )
-                                
-                                Spacer(modifier = Modifier.height(8.dp))
-                                
-                                Text(
-                                    text = "Lütfen geri dönüp dosya seçin",
-                                    color = Color.White.copy(alpha = 0.7f),
-                                    fontSize = 16.sp,
-                                    textAlign = TextAlign.Center
-                                )
-                                
-                                Spacer(modifier = Modifier.height(24.dp))
-                                
-                                Button(
-                                    onClick = onBackClick,
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = primaryColor
-                                    )
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.ArrowBack,
-                                        contentDescription = null
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Geri Dön")
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // Bottom action buttons in a fixed position at the bottom
-                if (selectedFiles.isNotEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                    ) {
-                        ImprovedBottomButtons(
-                            onNextClick = { onNextClick(optimizedFiles) },
-                            primaryColor = primaryColor,
-                            backgroundColor = surfaceColor
-                        )
-                    }
                 }
             }
         }
-        
+
         // Rename dialog
-        if (renameDialogVisible && currentEditingFileIndex < optimizedFiles.size) {
+        if (state.dialog.isVisible) {
             RenameFileDialog(
-                currentName = newFileName,
-                onNameChange = { newFileName = it },
-                onConfirm = {
-                    // Apply the rename logic
-                    val updatedList = optimizedFiles.toMutableList()
-                    val currentFile = updatedList[currentEditingFileIndex]
-                    val extension = currentFile.extension
-                    val path = currentFile.parentFile?.absolutePath ?: ""
-                    
-                    // For demonstration only - in a real app, you'd create a new file with the new name
-                    // and copy the content, then delete the old file
-                    val renamedFile = File("$path/$newFileName")
-                    updatedList[currentEditingFileIndex] = renamedFile
-                    optimizedFiles = updatedList
-                    
-                    coroutineScope.launch {
-                        snackbarHostState.showSnackbar("Dosya adı değiştirildi")
-                    }
-                    renameDialogVisible = false
-                },
-                onDismiss = { renameDialogVisible = false },
+                currentName = state.dialog.fileName,
+                onNameChange = { onEvent(EditOptimizeEvent.UpdateFileName(it)) },
+                onConfirm = { onEvent(EditOptimizeEvent.Dialog.Confirm) },
+                onDismiss = { onEvent(EditOptimizeEvent.Dialog.Hide) },
                 primaryColor = primaryColor
             )
+        }
+
+        // Loading indicator
+        if (state.isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.5f)),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    color = primaryColor
+                )
+            }
+        }
+
+        // Error snackbar
+        state.error?.let { error ->
+            LaunchedEffect(error) {
+                // Show snackbar
+            }
         }
     }
 }
@@ -285,7 +231,7 @@ fun EditOptimizeScreen(
  * Modern top app bar with progress tracker for step 2
  */
 @Composable
-private fun ModernTopAppBar(
+fun ModernTopAppBar(
     backgroundColor: Color,
     primaryColor: Color,
     onBackClick: () -> Unit
@@ -473,52 +419,57 @@ private fun ModernProgressTracker(
                         Box(
                             modifier = Modifier
                                 .width(lineWidth)
-                                .height(4.dp)
-                                .clip(RoundedCornerShape(2.dp))
-                                .background(
-                                    brush = Brush.horizontalGradient(
-                                        colors = if (isCompleted) {
-                                            listOf(
-                                                primaryColor,
-                                                primaryColor.copy(alpha = 0.8f)
-                                            )
-                                        } else {
-                                            listOf(
-                                                Color.White.copy(alpha = 0.2f),
-                                                Color.White.copy(alpha = 0.1f)
-                                            )
-                                        }
-                                    )
-                                )
-                        )
-                        
-                        // Animasyonlu parıltı efekti (tamamlanmış adımlar arasında)
-                        if (isCompleted) {
+                                .height(2.dp)
+                        ) {
+                            // Base line
                             Box(
                                 modifier = Modifier
-                                    .width(lineWidth)
-                                    .height(4.dp)
-                                    .offset(y = (-4).dp)
-                                    .clip(RoundedCornerShape(2.dp))
+                                    .fillMaxSize()
+                                    .clip(RoundedCornerShape(1.dp))
                                     .background(
                                         brush = Brush.horizontalGradient(
-                                            colors = listOf(
-                                                primaryColor.copy(alpha = 0f),
-                                                primaryColor.copy(alpha = glowAlpha),
-                                                primaryColor.copy(alpha = 0f)
-                                            ),
-                                            startX = shimmerOffset - 500f,
-                                            endX = shimmerOffset + 500f
+                                            colors = if (isCompleted) {
+                                                listOf(
+                                                    primaryColor,
+                                                    primaryColor.copy(alpha = 0.8f)
+                                                )
+                                            } else {
+                                                listOf(
+                                                    Color.White.copy(alpha = 0.2f),
+                                                    Color.White.copy(alpha = 0.1f)
+                                                )
+                                            }
                                         )
                                     )
                             )
+                            
+                            // Animated glow effect for completed lines
+                            if (isCompleted) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .graphicsLayer {
+                                            alpha = glowAlpha
+                                        }
+                                        .background(
+                                            brush = Brush.horizontalGradient(
+                                                colors = listOf(
+                                                    primaryColor.copy(alpha = 0f),
+                                                    primaryColor.copy(alpha = 0.5f),
+                                                    primaryColor.copy(alpha = 0f)
+                                                ),
+                                                startX = shimmerOffset - 500f,
+                                                endX = shimmerOffset + 500f
+                                            )
+                                        )
+                                )
+                            }
                         }
                     }
                 }
             }
         }
-        
-        // Adım açıklaması
+
         AnimatedVisibility(
             visible = currentStepDescription.isNotEmpty(),
             enter = expandVertically() + fadeIn(),
@@ -768,93 +719,105 @@ private fun EnhancedStepIndicator(
  */
 @Composable
 private fun FileEditorContent(
-    files: List<File>,
-    currentFileIndex: Int,
-    onFileSelect: (Int) -> Unit,
-    qualityLevel: Int,
-    onQualityChange: (Int) -> Unit,
-    compressionEnabled: Boolean,
-    onCompressionToggle: (Boolean) -> Unit,
-    onRenameClick: () -> Unit,
+    modifier: Modifier,
+    state: EditOptimizeState,
+    onEvent: (EditOptimizeEvent) -> Unit,
     primaryColor: Color,
     cardColor: Color
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
+    LazyColumn(
+        modifier = modifier
+            .padding(horizontal = 16.dp)
+            .padding(top = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Dosya bilgisi
-        if (files.isNotEmpty() && currentFileIndex < files.size) {
-            val currentFile = files[currentFileIndex]
+        if (state.hasFiles && state.currentFile != null) {
+            item {
+                FilePreviewCard(
+                    file = state.currentFile!!,
+                    primaryColor = primaryColor,
+                    cardColor = cardColor
+                )
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                OptimizationOptions(
+                    qualityLevel = state.qualityLevel,
+                    onQualityChange = { onEvent(EditOptimizeEvent.UpdateQualityLevel(it)) },
+                    compressionEnabled = state.compressionEnabled,
+                    onCompressionToggle = { onEvent(EditOptimizeEvent.UpdateCompression(it)) },
+                    onRenameClick = { onEvent(EditOptimizeEvent.Dialog.Show) },
+                    primaryColor = primaryColor,
+                    cardColor = cardColor
+                )
+                
+                Spacer(modifier = Modifier.height(24.dp))
+            }
             
-            // Dosya önizleme kartı
-            FilePreviewCard(
-                file = currentFile,
-                primaryColor = primaryColor,
-                cardColor = cardColor
-            )
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            // Optimization options
-            OptimizationOptions(
-                qualityLevel = qualityLevel,
-                onQualityChange = onQualityChange,
-                compressionEnabled = compressionEnabled,
-                onCompressionToggle = onCompressionToggle,
-                onRenameClick = onRenameClick,
-                primaryColor = primaryColor,
-                cardColor = cardColor
-            )
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            // Dosya listesi (birden fazla dosya varsa)
-            if (files.size > 1) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = cardColor.copy(alpha = 0.7f)
-                    ),
-                    shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(
-                        width = 1.dp,
-                        color = Color.White.copy(alpha = 0.1f)
+            if (state.hasMultipleFiles) {
+                item {
+                    FileListSection(
+                        files = state.files,
+                        currentFileIndex = state.currentFileIndex,
+                        onFileSelect = { onEvent(EditOptimizeEvent.SelectFile(it)) },
+                        primaryColor = primaryColor,
+                        cardColor = cardColor
                     )
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Text(
-                            text = "Tüm Dosyalar (${files.size})",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White
+                    
+                    Spacer(modifier = Modifier.height(100.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FileListSection(
+    files: List<File>,
+    currentFileIndex: Int,
+    onFileSelect: (Int) -> Unit,
+    primaryColor: Color,
+    cardColor: Color
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = cardColor.copy(alpha = 0.7f)
+        ),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(
+            width = 1.dp,
+            color = Color.White.copy(alpha = 0.1f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                text = "Tüm Dosyalar (${files.size})",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White
+            )
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            Column(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                files.forEachIndexed { index, file ->
+                    FileListItem(
+                        file = file,
+                        isSelected = index == currentFileIndex,
+                        onClick = { onFileSelect(index) },
+                        primaryColor = primaryColor
+                    )
+                    
+                    if (index < files.size - 1) {
+                        Divider(
+                            modifier = Modifier.padding(vertical = 8.dp),
+                            color = Color.White.copy(alpha = 0.1f)
                         )
-                        
-                        Spacer(modifier = Modifier.height(12.dp))
-                        
-                        LazyColumn(
-                            modifier = Modifier.height(200.dp)
-                        ) {
-                            items(files) { file ->
-                                FileListItem(
-                                    file = file,
-                                    isSelected = files.indexOf(file) == currentFileIndex,
-                                    onClick = { onFileSelect(files.indexOf(file)) },
-                                    primaryColor = primaryColor
-                                )
-                                
-                                if (files.indexOf(file) < files.size - 1) {
-                                    Divider(
-                                        modifier = Modifier.padding(vertical = 8.dp),
-                                        color = Color.White.copy(alpha = 0.1f)
-                                    )
-                                }
-                            }
-                        }
                     }
                 }
             }
@@ -1284,6 +1247,64 @@ private fun ImprovedBottomButtons(
                         modifier = Modifier.size(18.dp)
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyStateContent(
+    primaryColor: Color,
+    onBackClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Edit,
+                contentDescription = null,
+                tint = primaryColor,
+                modifier = Modifier.size(64.dp)
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Text(
+                text = "Düzenlenecek dosya bulunamadı",
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Text(
+                text = "Lütfen geri dönüp dosya seçin",
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 16.sp,
+                textAlign = TextAlign.Center
+            )
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Button(
+                onClick = onBackClick,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = primaryColor
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = null
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Geri Dön")
             }
         }
     }

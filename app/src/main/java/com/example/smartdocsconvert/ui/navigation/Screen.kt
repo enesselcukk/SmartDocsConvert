@@ -4,6 +4,7 @@ import android.net.Uri
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import com.example.smartdocsconvert.R
+import java.io.File
 
 /**
  * Uygulama içinde navigasyon için rota tanımlarını içerir
@@ -18,6 +19,13 @@ sealed class Screen(
     object EditOptimize : Screen("edit_optimize_screen", "Edit & Optimize", 0) {
         fun createRoute(filePathsString: String): String {
             val encodedPaths = URLEncoder.encode(filePathsString, StandardCharsets.UTF_8.toString())
+            return "$route/$encodedPaths"
+        }
+    }
+    object SaveShare : Screen("save_share_screen", "Save & Share", 0) {
+        fun createRoute(optimizedFiles: List<File>): String {
+            val pathsString = optimizedFiles.joinToString(",") { it.absolutePath }
+            val encodedPaths = URLEncoder.encode(pathsString, StandardCharsets.UTF_8.toString())
             return "$route/$encodedPaths"
         }
     }

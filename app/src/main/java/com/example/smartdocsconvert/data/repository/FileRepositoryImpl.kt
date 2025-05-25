@@ -16,7 +16,6 @@ import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
-@Singleton
 class FileRepositoryImpl @Inject constructor() : FileRepository {
     
     private val supportedExtensions = listOf("pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "txt")
@@ -36,7 +35,22 @@ class FileRepositoryImpl @Inject constructor() : FileRepository {
         allFilesCache.clear()
         return refreshFilesInternal(context)
     }
-    
+
+    override suspend fun renameFile(file: File, newName: String): Result<File> = runCatching {
+        val parentPath = file.parentFile?.absolutePath ?: throw IllegalStateException("Parent path not found")
+        val newFile = File("$parentPath/$newName")
+
+        if (file.renameTo(newFile)) {
+            newFile
+        } else {
+            throw IllegalStateException("Failed to rename file")
+        }
+    }
+
+    override suspend fun optimizeFile(file: File, quality: Int, compress: Boolean): Result<File> = runCatching {
+        file
+    }
+
     private suspend fun refreshFilesInternal(context: Context): List<File> = withContext(Dispatchers.IO) {
         val allFiles = mutableListOf<File>()
         val uniquePaths = HashSet<String>()
@@ -67,7 +81,6 @@ class FileRepositoryImpl @Inject constructor() : FileRepository {
         
         allFiles.sortByDescending { it.lastModified() }
 
-        
         val maxFiles = 1000
         val resultFiles = if (allFiles.size > maxFiles) {
             allFiles.subList(0, maxFiles)
@@ -338,4 +351,5 @@ class FileRepositoryImpl @Inject constructor() : FileRepository {
         }
         return null
     }
+
 } 
