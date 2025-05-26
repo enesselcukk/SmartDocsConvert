@@ -1,7 +1,5 @@
 package com.example.smartdocsconvert.ui.screens.file
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -11,16 +9,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -42,6 +39,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.smartdocsconvert.domain.model.EditOptimizeEvent
 import com.example.smartdocsconvert.domain.model.EditOptimizeState
 import com.example.smartdocsconvert.ui.viewmodel.EditOptimizeViewModel
+import com.example.smartdocsconvert.ui.components.ModernTopAppBar
+import com.example.smartdocsconvert.ui.theme.extendedColors
+import kotlin.math.log10
+import kotlin.math.pow
 
 @Composable
 fun EditOptimizeScreen(
@@ -51,8 +52,6 @@ fun EditOptimizeScreen(
     viewModel: EditOptimizeViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
-    
-    // Initialize files if needed
     LaunchedEffect(selectedFiles) {
         viewModel.initializeFiles(selectedFiles)
     }
@@ -74,18 +73,13 @@ private fun EditOptimizeContent(
     onBackClick: () -> Unit,
     onNextClick: () -> Unit
 ) {
-    val primaryColor = Color(0xFF4361EE)
-    val accentColor = Color(0xFF3DDAD7)
-    val darkBackground = Color(0xFF121212)
-    val surfaceColor = Color(0xFF1E1E1E)
-    val cardColor = Color(0xFF242424)
+    val colors = MaterialTheme.extendedColors
     
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(darkBackground)
+            .background(colors.darkBackground)
     ) {
-        // Decorative elements
         Box(
             modifier = Modifier
                 .size(350.dp)
@@ -95,7 +89,7 @@ private fun EditOptimizeContent(
                 }
                 .background(
                     brush = Brush.radialGradient(
-                        colors = listOf(primaryColor, Color.Transparent),
+                        colors = listOf(colors.primaryColor, Color.Transparent),
                         radius = 350f,
                         center = Offset.Unspecified
                     ),
@@ -113,7 +107,7 @@ private fun EditOptimizeContent(
                 }
                 .background(
                     brush = Brush.radialGradient(
-                        colors = listOf(accentColor, Color.Transparent),
+                        colors = listOf(colors.accentColor, Color.Transparent),
                         radius = 300f,
                         center = Offset.Unspecified
                     ),
@@ -157,8 +151,8 @@ private fun EditOptimizeContent(
                 if (state.hasFiles) {
                     ImprovedBottomButtons(
                         onNextClick = onNextClick,
-                        primaryColor = primaryColor,
-                        backgroundColor = surfaceColor
+                        primaryColor = colors.primaryColor,
+                        backgroundColor = colors.surfaceColor
                     )
                 }
             }
@@ -169,8 +163,10 @@ private fun EditOptimizeContent(
                     .padding(innerPadding)
             ) {
                 ModernTopAppBar(
-                    backgroundColor = surfaceColor,
-                    primaryColor = primaryColor,
+                    title = "Edit & Optimize",
+                    currentStep = 2,
+                    backgroundColor = colors.surfaceColor,
+                    primaryColor = colors.primaryColor,
                     onBackClick = onBackClick
                 )
 
@@ -181,30 +177,29 @@ private fun EditOptimizeContent(
                             .padding(bottom = 80.dp),
                         state = state,
                         onEvent = onEvent,
-                        primaryColor = primaryColor,
-                        cardColor = cardColor
+                        primaryColor = colors.primaryColor,
+                        cardColor = colors.cardColor
                     )
                 } else {
                     EmptyStateContent(
-                        primaryColor = primaryColor,
+                        primaryColor = colors.primaryColor,
                         onBackClick = onBackClick
                     )
                 }
             }
         }
 
-        // Rename dialog
         if (state.dialog.isVisible) {
             RenameFileDialog(
                 currentName = state.dialog.fileName,
                 onNameChange = { onEvent(EditOptimizeEvent.UpdateFileName(it)) },
                 onConfirm = { onEvent(EditOptimizeEvent.Dialog.Confirm) },
                 onDismiss = { onEvent(EditOptimizeEvent.Dialog.Hide) },
-                primaryColor = primaryColor
+                primaryColor = colors.primaryColor,
+                surfaceColor = colors.surfaceColor
             )
         }
 
-        // Loading indicator
         if (state.isLoading) {
             Box(
                 modifier = Modifier
@@ -213,506 +208,13 @@ private fun EditOptimizeContent(
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator(
-                    color = primaryColor
-                )
-            }
-        }
-
-        // Error snackbar
-        state.error?.let { error ->
-            LaunchedEffect(error) {
-                // Show snackbar
-            }
-        }
-    }
-}
-
-/**
- * Modern top app bar with progress tracker for step 2
- */
-@Composable
-fun ModernTopAppBar(
-    backgroundColor: Color,
-    primaryColor: Color,
-    onBackClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(140.dp)
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        backgroundColor,
-                        backgroundColor.copy(alpha = 0.95f),
-                        backgroundColor.copy(alpha = 0.90f)
-                    )
-                ),
-                shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
-            )
-            .shadow(
-                elevation = 8.dp,
-                shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-                spotColor = primaryColor.copy(alpha = 0.15f)
-            )
-    ) {
-        // Top section with back button
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp)
-        ) {
-            // Back button
-            IconButton(
-                onClick = onBackClick,
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(primaryColor.copy(alpha = 0.1f))
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Back",
-                    tint = primaryColor,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-
-            // Title
-            Text(
-                text = "Edit & Optimize",
-                color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.align(Alignment.Center)
-            )
-        }
-
-        // Progress tracker
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            contentAlignment = Alignment.Center
-        ) {
-            ModernProgressTracker(
-                modifier = Modifier
-                    .padding(horizontal = 16.dp)
-                    .graphicsLayer {
-                        alpha = 0.98f
-                    },
-                primaryColor = primaryColor,
-                currentStep = 2,
-                totalSteps = 3
-            )
-        }
-    }
-}
-
-/**
- * Modern progress tracker for multi-step process
- */
-@Composable
-private fun ModernProgressTracker(
-    modifier: Modifier = Modifier,
-    primaryColor: Color,
-    currentStep: Int,
-    totalSteps: Int
-) {
-    val lineWidth = 70.dp
-    
-    // Ana container için sıçrama animasyonu
-    val infiniteTransition = rememberInfiniteTransition(label = "")
-    val containerScale by infiniteTransition.animateFloat(
-        initialValue = 0.98f,
-        targetValue = 1.02f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = ""
-    )
-    
-    // Bağlantı çizgileri için parıltı animasyonu
-    val glowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.2f,
-        targetValue = 0.5f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = ""
-    )
-    
-    // Gradient ışıltı efekti için pozisyon
-    val shimmerOffset by infiniteTransition.animateFloat(
-        initialValue = -1000f,
-        targetValue = 1000f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2500, easing = LinearEasing),
-        ),
-        label = ""
-    )
-    
-    // Adım açıklamaları
-    val stepDescriptions = listOf("Select Document", "Edit & Optimize", "Save & Share")
-    val currentStepDescription = stepDescriptions.getOrNull(currentStep - 1) ?: ""
-    
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Box(
-            modifier = Modifier
-                .graphicsLayer {
-                    this.scaleX = containerScale
-                    this.scaleY = containerScale
-                }
-                .shadow(
-                    elevation = 8.dp,
-                    shape = RoundedCornerShape(32.dp),
-                    spotColor = primaryColor.copy(alpha = 0.3f)
-                )
-                .clip(RoundedCornerShape(32.dp))
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFF1A1A1A),
-                            Color(0xFF242424)
-                        )
-                    )
-                )
-                .border(
-                    width = 1.dp,
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            primaryColor.copy(alpha = 0.6f),
-                            primaryColor.copy(alpha = 0.2f)
-                        )
-                    ),
-                    shape = RoundedCornerShape(32.dp)
-                )
-                .padding(horizontal = 24.dp, vertical = 16.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .align(Alignment.Center),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                repeat(totalSteps) { index ->
-                    val stepNumber = index + 1
-                    val isActive = stepNumber == currentStep
-                    val isCompleted = stepNumber < currentStep
-                    
-                    // Step indicator
-                    EnhancedStepIndicator(
-                        number = stepNumber,
-                        isActive = isActive,
-                        isCompleted = isCompleted,
-                        primaryColor = primaryColor
-                    )
-                    
-                    // Connector line between steps
-                    if (index < totalSteps - 1) {
-                        Box(
-                            modifier = Modifier
-                                .width(lineWidth)
-                                .height(2.dp)
-                        ) {
-                            // Base line
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(RoundedCornerShape(1.dp))
-                                    .background(
-                                        brush = Brush.horizontalGradient(
-                                            colors = if (isCompleted) {
-                                                listOf(
-                                                    primaryColor,
-                                                    primaryColor.copy(alpha = 0.8f)
-                                                )
-                                            } else {
-                                                listOf(
-                                                    Color.White.copy(alpha = 0.2f),
-                                                    Color.White.copy(alpha = 0.1f)
-                                                )
-                                            }
-                                        )
-                                    )
-                            )
-                            
-                            // Animated glow effect for completed lines
-                            if (isCompleted) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .graphicsLayer {
-                                            alpha = glowAlpha
-                                        }
-                                        .background(
-                                            brush = Brush.horizontalGradient(
-                                                colors = listOf(
-                                                    primaryColor.copy(alpha = 0f),
-                                                    primaryColor.copy(alpha = 0.5f),
-                                                    primaryColor.copy(alpha = 0f)
-                                                ),
-                                                startX = shimmerOffset - 500f,
-                                                endX = shimmerOffset + 500f
-                                            )
-                                        )
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        AnimatedVisibility(
-            visible = currentStepDescription.isNotEmpty(),
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut(),
-        ) {
-            Row(
-                modifier = Modifier
-                    .padding(top = 12.dp)
-                    .shadow(
-                        elevation = 3.dp,
-                        shape = RoundedCornerShape(20.dp),
-                        spotColor = primaryColor.copy(alpha = 0.2f)
-                    )
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xFF1A1A1A))
-                    .border(
-                        width = 1.dp,
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                primaryColor.copy(alpha = 0.3f),
-                                primaryColor.copy(alpha = 0.1f)
-                            )
-                        ),
-                        shape = RoundedCornerShape(20.dp)
-                    )
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                // Step konu göstergesi (ikon)
-                val stepIcon = when(currentStep) {
-                    1 -> R.drawable.ic_file
-                    2 -> R.drawable.ic_edit
-                    3 -> R.drawable.ic_download
-                    else -> R.drawable.ic_file
-                }
-                
-                Icon(
-                    painter = painterResource(id = stepIcon),
-                    contentDescription = null,
-                    tint = primaryColor,
-                    modifier = Modifier.size(18.dp)
-                )
-                
-                Spacer(modifier = Modifier.width(8.dp))
-                
-                // Adım açıklaması
-                Text(
-                    text = currentStepDescription,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.White.copy(alpha = 0.9f)
+                    color = colors.primaryColor
                 )
             }
         }
     }
 }
 
-/**
- * Enhanced individual step indicator with advanced animations
- */
-@Composable
-private fun EnhancedStepIndicator(
-    number: Int,
-    isActive: Boolean,
-    isCompleted: Boolean,
-    primaryColor: Color
-) {
-    val infiniteTransition = rememberInfiniteTransition(label = "")
-    
-    // Aktif adım için daha vurgulu animasyon
-    val activeScale by animateFloatAsState(
-        targetValue = if (isActive) 1.1f else 0.9f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = ""
-    )
-    
-    // Seçili adım için parıltı animasyonu
-    val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = if (isActive) 1.15f else 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = ""
-    )
-    
-    // Glow efekti için opaklık animasyonu
-    val glowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.2f,
-        targetValue = if (isActive) 0.6f else 0.2f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = ""
-    )
-    
-    // Tamamlanmış adım için hareketli onay işareti animasyonu
-    val checkScale by infiniteTransition.animateFloat(
-        initialValue = 0.8f,
-        targetValue = 1.2f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = ""
-    )
-    
-    // Adım içindeki rotasyon
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = if (isActive) 5f else 0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = ""
-    )
-    
-    val size = if (isActive) 50.dp else 40.dp
-    
-    Box(
-        modifier = Modifier
-            .size(64.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        // Dış parıltı efekti
-        if (isActive || isCompleted) {
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .scale(pulseScale)
-                    .clip(CircleShape)
-                    .background(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                if (isActive) primaryColor.copy(alpha = glowAlpha) else primaryColor.copy(alpha = 0.3f),
-                                Color.Transparent
-                            )
-                        )
-                    )
-            )
-        }
-        
-        // Ana gösterge dairesi
-        Box(
-            modifier = Modifier
-                .size(size)
-                .scale(activeScale)
-                .graphicsLayer {
-                    rotationZ = rotation
-                }
-                .clip(CircleShape)
-                .background(
-                    brush = if (isActive || isCompleted) {
-                        Brush.linearGradient(
-                            colors = listOf(
-                                primaryColor,
-                                primaryColor.copy(alpha = 0.8f)
-                            ),
-                            start = Offset(0f, 0f),
-                            end = Offset(size.value, size.value)
-                        )
-                    } else {
-                        Brush.linearGradient(
-                            colors = listOf(
-                                Color(0xFF333333),
-                                Color(0xFF222222)
-                            )
-                        )
-                    }
-                )
-                .border(
-                    width = if (isActive) 2.dp else 1.dp,
-                    brush = if (isActive || isCompleted) {
-                        Brush.linearGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.8f),
-                                primaryColor.copy(alpha = 0.5f)
-                            )
-                        )
-                    } else {
-                        Brush.linearGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.2f),
-                                Color.White.copy(alpha = 0.05f)
-                            )
-                        )
-                    },
-                    shape = CircleShape
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            if (isCompleted) {
-                // Tamamlanmış adım için onay işareti
-                Icon(
-                    imageVector = Icons.Rounded.Check,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier
-                        .size(24.dp)
-                        .scale(checkScale)
-                )
-            } else {
-                // Aktif veya pasif adım numarası
-                Text(
-                    text = number.toString(),
-                    color = if (isActive) Color.White else Color.White.copy(alpha = 0.6f),
-                    fontSize = if (isActive) 18.sp else 16.sp,
-                    fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .padding(2.dp)
-                )
-                
-                // Aktif adım için dönüşen dairesel ilerleme göstergesi
-                if (isActive) {
-                    val rotation by infiniteTransition.animateFloat(
-                        initialValue = 0f,
-                        targetValue = 360f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(3000, easing = LinearEasing)
-                        ),
-                        label = ""
-                    )
-                    
-                    CircularProgressIndicator(
-                        modifier = Modifier
-                            .size(size)
-                            .graphicsLayer { rotationZ = rotation },
-                        color = Color.White.copy(alpha = 0.4f),
-                        strokeWidth = 1.dp
-                    )
-                }
-            }
-        }
-    }
-}
 
 /**
  * File editor content with preview and optimization options
@@ -814,7 +316,7 @@ private fun FileListSection(
                     )
                     
                     if (index < files.size - 1) {
-                        Divider(
+                        HorizontalDivider(
                             modifier = Modifier.padding(vertical = 8.dp),
                             color = Color.White.copy(alpha = 0.1f)
                         )
@@ -899,13 +401,11 @@ private fun FilePreviewCard(
 private fun formatFileSize(size: Long): String {
     if (size <= 0) return "0 B"
     val units = arrayOf("B", "KB", "MB", "GB", "TB")
-    val digitGroups = (Math.log10(size.toDouble()) / Math.log10(1024.0)).toInt()
-    return String.format("%.1f %s", size / Math.pow(1024.0, digitGroups.toDouble()), units[digitGroups])
+    val digitGroups = (log10(size.toDouble()) / log10(1024.0)).toInt()
+    return String.format("%.1f %s", size / 1024.0.pow(digitGroups.toDouble()), units[digitGroups])
 }
 
-/**
- * File list item
- */
+
 @Composable
 private fun FileListItem(
     file: File,
@@ -1104,7 +604,8 @@ private fun RenameFileDialog(
     onNameChange: (String) -> Unit,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
-    primaryColor: Color
+    primaryColor: Color,
+    surfaceColor: Color
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -1113,7 +614,7 @@ private fun RenameFileDialog(
                 .wrapContentHeight(),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
-                containerColor = Color(0xFF1E1E1E)
+                containerColor = surfaceColor
             ),
             border = BorderStroke(
                 width = 1.dp,
@@ -1242,7 +743,7 @@ private fun ImprovedBottomButtons(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Icon(
-                        imageVector = Icons.Rounded.ArrowForward,
+                        imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
                         contentDescription = "Next",
                         modifier = Modifier.size(18.dp)
                     )
@@ -1300,7 +801,7 @@ private fun EmptyStateContent(
                 )
             ) {
                 Icon(
-                    imageVector = Icons.Default.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = null
                 )
                 Spacer(modifier = Modifier.width(8.dp))

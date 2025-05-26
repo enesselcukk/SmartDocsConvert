@@ -1,35 +1,29 @@
 package com.example.smartdocsconvert.ui.screens.file
 
-import android.app.AlertDialog
-import android.content.Context
+
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import kotlinx.coroutines.delay
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
@@ -54,14 +48,8 @@ import com.example.smartdocsconvert.util.FileUtils
 import com.example.smartdocsconvert.di.PermissionHelperEntryPoint
 import dagger.hilt.android.EntryPointAccessors
 import java.io.File
-import kotlinx.coroutines.launch
-import android.content.Intent
-import android.net.Uri
-import android.webkit.MimeTypeMap
-import android.widget.Toast
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.core.content.FileProvider
+import com.example.smartdocsconvert.ui.components.ModernTopAppBar
+import com.example.smartdocsconvert.ui.theme.extendedColors
 
 @Composable
 fun ConvertFileScreen(
@@ -79,19 +67,13 @@ fun ConvertFileScreen(
         hiltEntryPoint.permissionHelper()
     }
 
-    val primaryColor = Color(0xFF4361EE)
-    val accentColor = Color(0xFF3DDAD7)
-    val darkBackground = Color(0xFF121212)
-    val surfaceColor = Color(0xFF1E1E1E)
-    val errorColor = Color(0xFFFF5A5A)
+    val colors = MaterialTheme.extendedColors
 
-    // App state
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Permission state
     var showPermissionRationale by remember { mutableStateOf(false) }
-    var permissionRequestCount by remember { mutableStateOf(0) }
+    var permissionRequestCount by remember { mutableIntStateOf(0) }
 
     // İzin isteme launcher'ı
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -107,16 +89,6 @@ fun ConvertFileScreen(
         }
     }
 
-    // Document picker launcher
-    val documentPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenMultipleDocuments()
-    ) { uris ->
-        if (uris.isNotEmpty()) {
-            viewModel.handleSelectedDocuments(context, uris)
-        }
-    }
-
-    // Hata mesajı varsa göster
     LaunchedEffect(uiState.lastError) {
         uiState.lastError?.let {
             snackbarHostState.showSnackbar(
@@ -126,7 +98,6 @@ fun ConvertFileScreen(
         }
     }
 
-    // İzin reddedildi dialoga
     if (showPermissionRationale) {
         PermissionDeniedDialog(
             onGoToSettings = {
@@ -139,13 +110,11 @@ fun ConvertFileScreen(
         )
     }
 
-    // Main screen structure
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(darkBackground)
+            .background(colors.darkBackground)
     ) {
-        // Decorative elements
         Box(
             modifier = Modifier
                 .size(350.dp)
@@ -156,7 +125,7 @@ fun ConvertFileScreen(
                 .blur(radius = 80.dp)
                 .background(
                     brush = Brush.radialGradient(
-                        colors = listOf(primaryColor, Color.Transparent),
+                        colors = listOf(colors.primaryColor, Color.Transparent),
                         radius = 350f,
                         center = Offset.Unspecified
                     ),
@@ -175,7 +144,7 @@ fun ConvertFileScreen(
                 .blur(radius = 60.dp)
                 .background(
                     brush = Brush.radialGradient(
-                        colors = listOf(accentColor, Color.Transparent),
+                        colors = listOf(colors.accentColor, Color.Transparent),
                         radius = 300f,
                         center = Offset.Unspecified
                     ),
@@ -195,32 +164,41 @@ fun ConvertFileScreen(
                     .padding(innerPadding)
                     .fillMaxSize()
             ) {
-                // İçerik
-                when {
-                    !permissionHelper.hasStoragePermissions() -> {
-                        StoragePermissionRequest(
-                            onRequestPermission = {
-                                permissionLauncher.launch(permissionHelper.getRequiredPermissions())
-                            }
-                        )
-                    }
-                    uiState.isLoading -> {
-                        LoadingContent()
-                    }
-                    uiState.files.isEmpty() -> {
-                        EmptyFilesContent()
-                    }
-                    else -> {
-                        FileListContent(
-                            files = uiState.files,
-                            selectedFiles = uiState.selectedFiles,
-                            onFileSelected = { viewModel.toggleFileSelection(it) },
-                            onBackClick = onBackClick
-                        )
+                Column {
+                    ModernTopAppBar(
+                        title = "Select Document",
+                        currentStep = 1,
+                        backgroundColor = colors.surfaceColor,
+                        primaryColor = colors.primaryColor,
+                        onBackClick = onBackClick
+                    )
+
+                    // İçerik
+                    when {
+                        !permissionHelper.hasStoragePermissions() -> {
+                            StoragePermissionRequest(
+                                onRequestPermission = {
+                                    permissionLauncher.launch(permissionHelper.getRequiredPermissions())
+                                }
+                            )
+                        }
+                        uiState.isLoading -> {
+                            LoadingContent()
+                        }
+                        uiState.files.isEmpty() -> {
+                            EmptyFilesContent()
+                        }
+                        else -> {
+                            FileListContent(
+                                files = uiState.files,
+                                selectedFiles = uiState.selectedFiles,
+                                onFileSelected = { viewModel.toggleFileSelection(it) },
+                                onBackClick = onBackClick
+                            )
+                        }
                     }
                 }
 
-                // Bottom action buttons
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -229,8 +207,8 @@ fun ConvertFileScreen(
                     ImprovedBottomButtons(
                         selectedFiles = uiState.selectedFiles,
                         onNextClick = { onNextClick(uiState.selectedFiles.toList()) },
-                        primaryColor = primaryColor,
-                        backgroundColor = surfaceColor
+                        primaryColor = colors.primaryColor,
+                        backgroundColor = colors.surfaceColor
                     )
                 }
             }
@@ -238,374 +216,6 @@ fun ConvertFileScreen(
     }
 }
 
-/**
- * Modern top app bar
- */
-@Composable
-private fun ModernTopAppBar(
-    backgroundColor: Color,
-    primaryColor: Color,
-    onBackClick: () -> Unit,
-    onRefreshClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(170.dp)
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        backgroundColor,
-                        backgroundColor.copy(alpha = 0.95f),
-                        backgroundColor.copy(alpha = 0.90f)
-                    )
-                ),
-                shape = RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp)
-            )
-            .shadow(
-                elevation = 12.dp,
-                shape = RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp),
-                spotColor = primaryColor.copy(alpha = 0.15f)
-            )
-    ) {
-        // Top section with back button
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp)
-        ) {
-            // Back button
-            IconButton(
-                onClick = onBackClick,
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(primaryColor.copy(alpha = 0.1f))
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Back",
-                    tint = primaryColor,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-
-            // Title
-            Text(
-                text = "Select Document",
-                color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.align(Alignment.Center)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Progress tracker
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            ModernProgressTracker(
-                modifier = Modifier
-                    .graphicsLayer {
-                        alpha = 0.98f
-                    },
-                primaryColor = primaryColor,
-                currentStep = 1,
-                totalSteps = 3
-            )
-        }
-    }
-}
-
-/**
- * Modern progress tracker for multi-step process
- */
-@Composable
-private fun ModernProgressTracker(
-    modifier: Modifier = Modifier,
-    primaryColor: Color,
-    currentStep: Int,
-    totalSteps: Int
-) {
-    val lineWidth = 70.dp
-
-    // Ana container için sıçrama animasyonu
-    val infiniteTransition = rememberInfiniteTransition(label = "")
-    val containerScale by infiniteTransition.animateFloat(
-        initialValue = 0.98f,
-        targetValue = 1.02f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = ""
-    )
-
-    // Bağlantı çizgileri için parıltı animasyonu
-    val glowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.2f,
-        targetValue = 0.5f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = ""
-    )
-
-    // Gradient ışıltı efekti için pozisyon
-    val shimmerOffset by infiniteTransition.animateFloat(
-        initialValue = -1000f,
-        targetValue = 1000f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2500, easing = LinearEasing),
-        ),
-        label = ""
-    )
-
-    // Adım açıklamaları
-    val stepDescriptions = listOf("Select Document", "Edit & Optimize", "Save & Share")
-    val currentStepDescription = stepDescriptions.getOrNull(currentStep - 1) ?: ""
-
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Box(
-            modifier = Modifier
-                .graphicsLayer {
-                    this.scaleX = containerScale
-                    this.scaleY = containerScale
-                }
-                .shadow(
-                    elevation = 8.dp,
-                    shape = RoundedCornerShape(32.dp),
-                    spotColor = primaryColor.copy(alpha = 0.3f)
-                )
-                .clip(RoundedCornerShape(32.dp))
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFF1A1A1A),
-                            Color(0xFF242424)
-                        )
-                    )
-                )
-                .border(
-                    width = 1.dp,
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            primaryColor.copy(alpha = 0.6f),
-                            primaryColor.copy(alpha = 0.2f)
-                        )
-                    ),
-                    shape = RoundedCornerShape(32.dp)
-                )
-                .padding(horizontal = 24.dp, vertical = 16.dp)
-                .width(300.dp) // Sabit genişlik ekledim
-        ) {
-            Row(
-                modifier = Modifier
-                    .align(Alignment.Center),
-                horizontalArrangement = Arrangement.spacedBy(space = 8.dp), // Adımlar arası boşluk
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                repeat(totalSteps) { index ->
-                    val stepNumber = index + 1
-                    val isActive = stepNumber == currentStep
-                    val isCompleted = stepNumber < currentStep
-
-                    // Step indicator
-                    EnhancedStepIndicator(
-                        number = stepNumber,
-                        isActive = isActive,
-                        isCompleted = isCompleted,
-                        primaryColor = primaryColor
-                    )
-
-                    // Connector line between steps
-                    if (index < totalSteps - 1) {
-                        Box(
-                            modifier = Modifier
-                                .width(lineWidth)
-                                .height(4.dp)
-                                .clip(RoundedCornerShape(2.dp))
-                        ) {
-                            // Base line
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(
-                                        brush = Brush.horizontalGradient(
-                                            colors = if (isCompleted) {
-                                                listOf(
-                                                    primaryColor,
-                                                    primaryColor.copy(alpha = 0.8f)
-                                                )
-                                            } else {
-                                                listOf(
-                                                    Color.White.copy(alpha = 0.2f),
-                                                    Color.White.copy(alpha = 0.1f)
-                                                )
-                                            }
-                                        )
-                                    )
-                            )
-
-                            // Animated glow effect for completed lines
-                            if (isCompleted) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .graphicsLayer {
-                                            alpha = glowAlpha
-                                        }
-                                        .background(
-                                            brush = Brush.horizontalGradient(
-                                                colors = listOf(
-                                                    primaryColor.copy(alpha = 0f),
-                                                    primaryColor.copy(alpha = 0.5f),
-                                                    primaryColor.copy(alpha = 0f)
-                                                ),
-                                                startX = shimmerOffset - 500f,
-                                                endX = shimmerOffset + 500f
-                                            )
-                                        )
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        AnimatedVisibility(
-            visible = currentStepDescription.isNotEmpty(),
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut(),
-        ) {
-            Row(
-                modifier = Modifier
-                    .padding(top = 12.dp)
-                    .shadow(
-                        elevation = 3.dp,
-                        shape = RoundedCornerShape(20.dp),
-                        spotColor = primaryColor.copy(alpha = 0.2f)
-                    )
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xFF1A1A1A))
-                    .border(
-                        width = 1.dp,
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                primaryColor.copy(alpha = 0.3f),
-                                primaryColor.copy(alpha = 0.1f)
-                            )
-                        ),
-                        shape = RoundedCornerShape(20.dp)
-                    )
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                // Step konu göstergesi (ikon)
-                val stepIcon = when(currentStep) {
-                    1 -> R.drawable.ic_file
-                    2 -> R.drawable.ic_edit
-                    3 -> R.drawable.ic_download
-                    else -> R.drawable.ic_file
-                }
-
-                Icon(
-                    painter = painterResource(id = stepIcon),
-                    contentDescription = null,
-                    tint = primaryColor,
-                    modifier = Modifier.size(18.dp)
-                )
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                // Adım açıklaması
-                Text(
-                    text = currentStepDescription,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.White.copy(alpha = 0.9f)
-                )
-            }
-        }
-    }
-}
-
-/**
- * Enhanced individual step indicator with advanced animations
- */
-@Composable
-private fun EnhancedStepIndicator(
-    number: Int,
-    isActive: Boolean,
-    isCompleted: Boolean,
-    primaryColor: Color
-) {
-    val size = if (isActive) 48.dp else 40.dp // Boyutları küçülttüm
-
-    val infiniteTransition = rememberInfiniteTransition(label = "")
-
-    // Aktif adım için daha vurgulu animasyon
-    val activeScale by animateFloatAsState(
-        targetValue = if (isActive) 1.1f else 0.9f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = ""
-    )
-
-    Box(
-        modifier = Modifier
-            .size(size)
-            .scale(activeScale)
-            .clip(CircleShape)
-            .background(
-                if (isActive || isCompleted) primaryColor
-                else Color.White.copy(alpha = 0.1f)
-            )
-            .border(
-                width = 1.dp,
-                color = if (isActive || isCompleted)
-                    primaryColor.copy(alpha = 0.8f)
-                else
-                    Color.White.copy(alpha = 0.2f),
-                shape = CircleShape
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        if (isCompleted) {
-            Icon(
-                imageVector = Icons.Rounded.Check,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(24.dp)
-            )
-        } else {
-            Text(
-                text = number.toString(),
-                color = if (isActive) Color.White else Color.White.copy(alpha = 0.6f),
-                fontSize = if (isActive) 18.sp else 16.sp,
-                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium
-            )
-        }
-    }
-}
-
-/**
- * Selected files info with modern design
- */
 @Composable
 private fun SelectedFilesInfo(
     selectedCount: Int,
@@ -640,7 +250,6 @@ private fun SelectedFilesInfo(
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Animated check indicator
                 val infiniteTransition = rememberInfiniteTransition(label = "")
                 val iconScale by infiniteTransition.animateFloat(
                     initialValue = 0.9f,
@@ -693,387 +302,6 @@ private fun SelectedFilesInfo(
     }
 }
 
-/**
- * Enhanced file list with animations and improved layout
- */
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun EnhancedFilesList(
-    files: List<File>,
-    selectedFiles: Set<File>,
-    onFileClick: (File) -> Unit,
-    formatFileSize: (Long) -> String,
-    primaryColor: Color,
-    cardColor: Color
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 20.dp)
-    ) {
-        // Section heading with file count
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = "Available Files (${files.size})",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color.White.copy(alpha = 0.8f)
-            )
-
-            if (selectedFiles.isNotEmpty()) {
-                Text(
-                    text = "${selectedFiles.size} selected",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Normal,
-                    color = primaryColor
-                )
-            }
-        }
-
-        // Files list
-        LazyColumn(
-            state = rememberLazyListState(),
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(bottom = 100.dp)
-        ) {
-            items(
-                items = files,
-                key = { it.absolutePath }
-            ) { file ->
-                ModernFileItem(
-                    file = file,
-                    isSelected = selectedFiles.contains(file),
-                    onClick = { onFileClick(file) },
-                    formatFileSize = formatFileSize,
-                    modifier = Modifier.animateItemPlacement(
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                            stiffness = Spring.StiffnessLow
-                        )
-                    ),
-                    primaryColor = primaryColor,
-                    cardColor = cardColor
-                )
-            }
-        }
-    }
-}
-
-/**
- * Modern file item with improved design and animations
- */
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun ModernFileItem(
-    file: File,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    formatFileSize: (Long) -> String,
-    modifier: Modifier = Modifier,
-    primaryColor: Color,
-    cardColor: Color
-) {
-    var isPressed by remember { mutableStateOf(false) }
-    val interactionSource = remember { MutableInteractionSource() }
-    val coroutineScope = rememberCoroutineScope()
-    val context = LocalContext.current
-
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.98f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = ""
-    )
-
-    val elevation by animateFloatAsState(
-        targetValue = if (isSelected) 4f else 1f,
-        label = ""
-    )
-
-    // File details
-    val fileExtension = file.extension.uppercase()
-    val fileIcon = R.drawable.ic_file
-
-    val fileColor = when (fileExtension) {
-        "PDF" -> Color(0xFFFF4444)
-        "DOC", "DOCX" -> Color(0xFF4285F4)
-        "XLS", "XLSX" -> Color(0xFF0F9D58)
-        "PPT", "PPTX" -> Color(0xFFFF9800)
-        else -> Color(0xFF9E9E9E)
-    }
-
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .shadow(
-                elevation = elevation.dp,
-                shape = RoundedCornerShape(16.dp),
-                spotColor = if (isSelected) primaryColor.copy(alpha = 0.3f) else Color.Black
-            )
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) cardColor.copy(alpha = 0.95f) else cardColor.copy(alpha = 0.7f)
-        ),
-        border = if (isSelected) {
-            BorderStroke(
-                width = 1.dp,
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        primaryColor.copy(alpha = 0.8f),
-                        primaryColor.copy(alpha = 0.4f)
-                    )
-                )
-            )
-        } else {
-            BorderStroke(
-                width = 0.5.dp,
-                color = Color.White.copy(alpha = 0.1f)
-            )
-        }
-    ) {
-        Row(
-            modifier = Modifier
-                .combinedClickable(
-                    interactionSource = interactionSource,
-                    indication = rememberRipple(color = Color.White.copy(alpha = 0.1f)),
-                    onClick = {
-                        isPressed = true
-                        onClick()
-                        // Reset the pressed state after a short delay
-                        coroutineScope.launch {
-                           delay(150)
-                            isPressed = false
-                        }
-                    },
-                    onLongClick = {
-                        // Dosyayı açmak için "Şununla Aç" seçeneğini göster
-                        openDocumentWithChooser(context, file)
-                    }
-                )
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // File icon with modern design
-            Box(
-                modifier = Modifier
-                    .size(54.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(
-                        color = fileColor.copy(alpha = 0.12f)
-                    )
-                    .border(
-                        width = 1.dp,
-                        color = fileColor.copy(alpha = 0.2f),
-                        shape = RoundedCornerShape(12.dp)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    painter = painterResource(id = file.getDocumentIcon()),
-                    contentDescription = "File type",
-                    tint = fileColor,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-
-            // File details with better layout
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 16.dp)
-            ) {
-                Text(
-                    text = file.name,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.White,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = formatFileSize(file.length()),
-                        fontSize = 12.sp,
-                        color = Color.White.copy(alpha = 0.5f)
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .padding(horizontal = 6.dp)
-                            .size(4.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.3f))
-                    )
-
-                    Text(
-                        text = fileExtension,
-                        fontSize = 12.sp,
-                        color = fileColor.copy(alpha = 0.8f),
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-
-            // Selection indicator with animation
-            if (isSelected) {
-                Box(
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clip(CircleShape)
-                        .background(primaryColor),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Check,
-                        contentDescription = "Selected",
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clip(CircleShape)
-                        .border(
-                            width = 1.dp,
-                            color = Color.White.copy(alpha = 0.2f),
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    // Empty circle
-                }
-            }
-        }
-    }
-}
-
-private fun File.getDocumentIcon(): Int {
-    return when (extension.lowercase()) {
-        "pdf" -> R.drawable.ic_pdf
-        "doc", "docx", "rtf", "odt" -> R.drawable.ic_doc
-        "xls", "xlsx", "csv", "ods" -> R.drawable.ic_xls
-        "ppt", "pptx", "pps", "odp" -> R.drawable.ic_ppt
-        "txt", "md", "log", "json", "xml", "html", "htm", "css", "js" -> R.drawable.ic_txt
-        "jpg", "jpeg", "png", "bmp", "tiff", "tif", "webp", "gif", "svg", "ico" -> R.drawable.ic_image
-        else -> R.drawable.ic_file
-    }
-}
-
-private fun openDocumentWithChooser(context: Context, file: File) {
-    try {
-        // FileProvider URI oluştur
-        val fileUri = FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.provider",
-            file
-        )
-
-        // Dosya uzantısını al ve MIME türünü belirle
-        val extension = file.extension.lowercase()
-        val mimeType = getMimeType(extension)
-
-        // VIEW intent oluştur
-        val viewIntent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(fileUri, mimeType)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-
-        // Kullanıcıya "Şununla Aç" seçeneğini sunan Intent
-        val chooserIntent = Intent.createChooser(
-            viewIntent,
-            "Dosyayı şununla aç"
-        )
-
-        // Intent'i başlat
-        if (viewIntent.resolveActivity(context.packageManager) != null) {
-            context.startActivity(chooserIntent)
-        } else {
-            // Uygun bir uygulama bulunamadıysa, kullanıcıya göster ve Play Store'a yönlendir
-            showNoAppFoundDialog(context, mimeType)
-        }
-    } catch (e: Exception) {
-        Toast.makeText(
-            context,
-            "Dosya açılamadı: ${e.message}",
-            Toast.LENGTH_LONG
-        ).show()
-    }
-}
-
-
-private fun showNoAppFoundDialog(context: Context, mimeType: String) {
-    val alertDialog = AlertDialog.Builder(context)
-        .setTitle("Uygun Uygulama Bulunamadı")
-        .setMessage("Bu dosyayı açabilecek bir uygulama bulunamadı. Play Store'dan uygun bir uygulama yüklemek ister misiniz?")
-        .setPositiveButton("Evet") { _, _ ->
-            val marketIntent = Intent(Intent.ACTION_VIEW).apply {
-                data = Uri.parse("market://search?q=${mimeType.replace("/", " ")} görüntüleyici")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-
-            if (marketIntent.resolveActivity(context.packageManager) != null) {
-                context.startActivity(marketIntent)
-            } else {
-                Toast.makeText(
-                    context,
-                    "Google Play Store bulunamadı",
-                    Toast.LENGTH_LONG
-                ).show()
-            }
-        }
-        .setNegativeButton("Hayır", null)
-        .create()
-
-    alertDialog.show()
-}
-
-
-private fun getMimeType(extension: String): String {
-    return when (extension) {
-        "pdf" -> "application/pdf"
-        "doc", "docx" -> "application/msword"
-        "xls", "xlsx" -> "application/vnd.ms-excel"
-        "ppt", "pptx" -> "application/vnd.ms-powerpoint"
-        "txt" -> "text/plain"
-        "jpg", "jpeg" -> "image/jpeg"
-        "png" -> "image/png"
-        "gif" -> "image/gif"
-        "webp" -> "image/webp"
-        "svg" -> "image/svg+xml"
-        "html", "htm" -> "text/html"
-        "css" -> "text/css"
-        "js" -> "application/javascript"
-        "json" -> "application/json"
-        "xml" -> "application/xml"
-        "csv" -> "text/csv"
-        "rtf" -> "application/rtf"
-        "odt" -> "application/vnd.oasis.opendocument.text"
-        "ods" -> "application/vnd.oasis.opendocument.spreadsheet"
-        "odp" -> "application/vnd.oasis.opendocument.presentation"
-        else -> MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: "*/*"
-    }
-}
-
-
 @Composable
 private fun ImprovedBottomButtons(
     selectedFiles: Set<File>,
@@ -1081,7 +309,6 @@ private fun ImprovedBottomButtons(
     primaryColor: Color,
     backgroundColor: Color
 ) {
-    // Only show the bottom buttons when files are selected
     AnimatedVisibility(
         visible = selectedFiles.isNotEmpty(),
         enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
@@ -1158,12 +385,7 @@ private fun PermissionDeniedDialog(
     onGoToSettings: () -> Unit,
     onClose: () -> Unit
 ) {
-    val primaryColor = Color(0xFF4361EE) // Modern blue
-    val accentColor = Color(0xFF3DDAD7) // Teal accent
-    val backgroundColor = Color(0xFF1E1E1E) // Dark surface
-    val errorColor = Color(0xFFFF5A5A) // Warning/error
-
-    // Animation for dialog appearance
+    val colors = MaterialTheme.extendedColors
     var isVisible by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (isVisible) 1f else 0.95f,
@@ -1180,7 +402,6 @@ private fun PermissionDeniedDialog(
         label = ""
     )
 
-    // Warning pulse animation
     val infiniteTransition = rememberInfiniteTransition(label = "")
     val warningScale by infiniteTransition.animateFloat(
         initialValue = 0.9f,
@@ -1192,7 +413,6 @@ private fun PermissionDeniedDialog(
         label = ""
     )
 
-    // Glow animation
     val glowAlpha by infiniteTransition.animateFloat(
         initialValue = 0.2f,
         targetValue = 0.5f,
@@ -1203,7 +423,6 @@ private fun PermissionDeniedDialog(
         label = ""
     )
 
-    // Set animation to visible
     LaunchedEffect(Unit) {
         isVisible = true
     }
@@ -1232,7 +451,7 @@ private fun PermissionDeniedDialog(
                     .background(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                backgroundColor,
+                                colors.surfaceColor,
                                 Color(0xFF121212)
                             )
                         ),
@@ -1253,14 +472,13 @@ private fun PermissionDeniedDialog(
                     modifier = Modifier.padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Top warning icon with glow effect
                     Box(
                         modifier = Modifier
                             .size(80.dp)
                             .background(
                                 brush = Brush.radialGradient(
                                     colors = listOf(
-                                        errorColor.copy(alpha = glowAlpha),
+                                        Color(0xFFFF5A5A).copy(alpha = glowAlpha),
                                         Color.Transparent
                                     )
                                 ),
@@ -1273,11 +491,11 @@ private fun PermissionDeniedDialog(
                                 .size(60.dp)
                                 .clip(CircleShape)
                                 .background(
-                                    color = backgroundColor
+                                    color = colors.surfaceColor
                                 )
                                 .border(
                                     width = 1.dp,
-                                    color = errorColor.copy(alpha = 0.3f),
+                                    color = Color(0xFFFF5A5A).copy(alpha = 0.3f),
                                     shape = CircleShape
                                 ),
                             contentAlignment = Alignment.Center
@@ -1285,17 +503,14 @@ private fun PermissionDeniedDialog(
                             Icon(
                                 imageVector = Icons.Default.Warning,
                                 contentDescription = null,
-                                tint = errorColor,
+                                tint = Color(0xFFFF5A5A),
                                 modifier = Modifier
                                     .size(32.dp)
                                     .scale(warningScale)
                             )
                         }
                     }
-
                     Spacer(modifier = Modifier.height(20.dp))
-
-                    // Dialog title
                     Text(
                         text = "Permission Required",
                         color = Color.White,
@@ -1303,10 +518,7 @@ private fun PermissionDeniedDialog(
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
                     )
-
                     Spacer(modifier = Modifier.height(12.dp))
-
-                    // Dialog message
                     Text(
                         text = "We need storage permission to access documents for conversion. You can grant it in app settings.",
                         color = Color.White.copy(alpha = 0.7f),
@@ -1314,10 +526,7 @@ private fun PermissionDeniedDialog(
                         textAlign = TextAlign.Center,
                         lineHeight = 24.sp
                     )
-
                     Spacer(modifier = Modifier.height(28.dp))
-
-                    // Settings button
                     Button(
                         onClick = onGoToSettings,
                         modifier = Modifier
@@ -1325,7 +534,7 @@ private fun PermissionDeniedDialog(
                             .height(56.dp),
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = primaryColor
+                            containerColor = colors.primaryColor
                         ),
                         elevation = ButtonDefaults.buttonElevation(
                             defaultElevation = 4.dp
@@ -1345,10 +554,7 @@ private fun PermissionDeniedDialog(
                             fontWeight = FontWeight.Bold
                         )
                     }
-
                     Spacer(modifier = Modifier.height(16.dp))
-
-                    // Close button
                     TextButton(
                         onClick = onClose,
                         modifier = Modifier
@@ -1381,9 +587,7 @@ private fun StoragePermissionRequest(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(32.dp)
         ) {
-            val primaryColor = Color(0xFF4361EE)
-
-            // Animated icon
+            val colors = MaterialTheme.extendedColors
             val infiniteTransition = rememberInfiniteTransition(label = "")
             val scale by infiniteTransition.animateFloat(
                 initialValue = 0.9f,
@@ -1403,7 +607,7 @@ private fun StoragePermissionRequest(
                     .background(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                primaryColor.copy(alpha = 0.1f),
+                                colors.primaryColor.copy(alpha = 0.1f),
                                 Color.Transparent
                             )
                         ),
@@ -1416,11 +620,11 @@ private fun StoragePermissionRequest(
                         .size(100.dp)
                         .clip(CircleShape)
                         .background(
-                            color = primaryColor.copy(alpha = 0.08f)
+                            color = colors.primaryColor.copy(alpha = 0.08f)
                         )
                         .border(
                             width = 1.dp,
-                            color = primaryColor.copy(alpha = 0.2f),
+                            color = colors.primaryColor.copy(alpha = 0.2f),
                             shape = CircleShape
                         ),
                     contentAlignment = Alignment.Center
@@ -1428,7 +632,7 @@ private fun StoragePermissionRequest(
                     Icon(
                         imageVector = Icons.Filled.Warning,
                         contentDescription = null,
-                        tint = primaryColor,
+                        tint = colors.primaryColor,
                         modifier = Modifier.size(52.dp)
                     )
                 }
@@ -1458,7 +662,7 @@ private fun StoragePermissionRequest(
             Button(
                 onClick = onRequestPermission,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = primaryColor
+                    containerColor = colors.primaryColor
                 ),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
@@ -1482,18 +686,17 @@ private fun LoadingContent() {
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        val primaryColor = Color(0xFF4361EE)
-        LoadingAnimation(primaryColor = primaryColor)
+        val colors = MaterialTheme.extendedColors
+        LoadingAnimation(primaryColor = colors.primaryColor)
     }
 }
 
 @Composable
 private fun EmptyFilesContent() {
-    val primaryColor = Color(0xFF4361EE)
+    val colors = MaterialTheme.extendedColors
     val context = LocalContext.current
     val viewModel = hiltViewModel<FileConverterViewModel>()
-    
-    // Document picker launcher
+
     val documentPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenMultipleDocuments()
     ) { uris ->
@@ -1510,7 +713,6 @@ private fun EmptyFilesContent() {
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(32.dp)
         ) {
-            // Animated icon
             val infiniteTransition = rememberInfiniteTransition(label = "")
             val scale by infiniteTransition.animateFloat(
                 initialValue = 0.9f,
@@ -1530,7 +732,7 @@ private fun EmptyFilesContent() {
                     .background(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                primaryColor.copy(alpha = 0.1f),
+                                colors.primaryColor.copy(alpha = 0.1f),
                                 Color.Transparent
                             )
                         ),
@@ -1543,11 +745,11 @@ private fun EmptyFilesContent() {
                         .size(100.dp)
                         .clip(CircleShape)
                         .background(
-                            color = primaryColor.copy(alpha = 0.08f)
+                            color = colors.primaryColor.copy(alpha = 0.08f)
                         )
                         .border(
                             width = 1.dp,
-                            color = primaryColor.copy(alpha = 0.2f),
+                            color = colors.primaryColor.copy(alpha = 0.2f),
                             shape = CircleShape
                         ),
                     contentAlignment = Alignment.Center
@@ -1555,7 +757,7 @@ private fun EmptyFilesContent() {
                     Icon(
                         painter = painterResource(id = R.drawable.ic_file),
                         contentDescription = null,
-                        tint = primaryColor,
+                        tint = colors.primaryColor,
                         modifier = Modifier.size(52.dp)
                     )
                 }
@@ -1579,10 +781,7 @@ private fun EmptyFilesContent() {
                 color = Color.White.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center
             )
-
             Spacer(modifier = Modifier.height(24.dp))
-
-            // Document picker button
             Button(
                 onClick = {
                     documentPickerLauncher.launch(arrayOf(
@@ -1597,7 +796,7 @@ private fun EmptyFilesContent() {
                     ))
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = primaryColor
+                    containerColor = colors.primaryColor
                 ),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
@@ -1616,10 +815,7 @@ private fun EmptyFilesContent() {
                     fontWeight = FontWeight.SemiBold
                 )
             }
-
             Spacer(modifier = Modifier.height(16.dp))
-
-            // Refresh button (as secondary action)
             Button(
                 onClick = {
                     viewModel.forceRefreshFiles(context)
@@ -1670,22 +866,12 @@ private fun FileListContent(
     onFileSelected: (File) -> Unit,
     onBackClick: () -> Unit
 ) {
-    val primaryColor = Color(0xFF4361EE)
-    val cardColor = Color(0xFF242424)
+    val colors = MaterialTheme.extendedColors
 
     Column {
-        // Modern top app bar with updated design
-        ModernTopAppBar(
-            backgroundColor = Color(0xFF1E1E1E),
-            primaryColor = primaryColor,
-            onBackClick = onBackClick,
-            onRefreshClick = { /* Handle refresh */ }
-        )
-
-        // Selected files info with modern design
         SelectedFilesInfo(
             selectedCount = selectedFiles.size,
-            primaryColor = primaryColor,
+            primaryColor = colors.primaryColor,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
         )
 
@@ -1708,7 +894,7 @@ private fun FileListContent(
                     Icon(
                         painter = painterResource(id = R.drawable.ic_info),
                         contentDescription = null,
-                        tint = primaryColor,
+                        tint = colors.primaryColor,
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
@@ -1735,11 +921,11 @@ private fun FileListContent(
                         .fillMaxWidth()
                         .clickable { onFileSelected(file) },
                     colors = CardDefaults.cardColors(
-                        containerColor = if (isSelected) primaryColor.copy(alpha = 0.2f) else cardColor
+                        containerColor = if (isSelected) colors.primaryColor.copy(alpha = 0.2f) else Color(0xFF242424)
                     ),
                     shape = RoundedCornerShape(12.dp),
                     border = if (isSelected) {
-                        BorderStroke(1.dp, primaryColor.copy(alpha = 0.7f))
+                        BorderStroke(1.dp, colors.primaryColor.copy(alpha = 0.7f))
                     } else null
                 ) {
                     Row(
@@ -1748,13 +934,12 @@ private fun FileListContent(
                             .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // File icon
                         Box(
                             modifier = Modifier
                                 .size(48.dp)
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(
-                                    if (isSelected) primaryColor.copy(alpha = 0.2f)
+                                    if (isSelected) colors.primaryColor.copy(alpha = 0.2f)
                                     else Color.White.copy(alpha = 0.08f)
                                 ),
                             contentAlignment = Alignment.Center
@@ -1771,7 +956,7 @@ private fun FileListContent(
                             Icon(
                                 painter = painterResource(id = iconRes),
                                 contentDescription = null,
-                                tint = if (isSelected) primaryColor else Color.White,
+                                tint = if (isSelected) colors.primaryColor else Color.White,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -1820,7 +1005,7 @@ private fun FileListContent(
                                 modifier = Modifier
                                     .size(24.dp)
                                     .clip(CircleShape)
-                                    .background(primaryColor),
+                                    .background(colors.primaryColor),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(

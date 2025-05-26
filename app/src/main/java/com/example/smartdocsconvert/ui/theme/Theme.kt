@@ -27,7 +27,12 @@ data class ExtendedColors(
     val filterText: Color,
     val selectedItem: Color,
     val accentTeal: Color,
-    val goldColor: Color
+    val goldColor: Color,
+    val primaryColor: Color = Color(0xFF4361EE),
+    val accentColor: Color = Color(0xFF3DDAD7),
+    val darkBackground: Color = Color(0xFF121212),
+    val surfaceColor: Color = Color(0xFF1E1E1E),
+    val cardColor: Color = Color(0xFF242424)
 )
 
 private val LocalExtendedColors = staticCompositionLocalOf {
@@ -39,7 +44,12 @@ private val LocalExtendedColors = staticCompositionLocalOf {
         filterText = Color.Unspecified,
         selectedItem = Color.Unspecified,
         accentTeal = Color.Unspecified,
-        goldColor = Color.Unspecified
+        goldColor = Color.Unspecified,
+        primaryColor = Color(0xFF4361EE),
+        accentColor = Color(0xFF3DDAD7),
+        darkBackground = Color(0xFF121212),
+        surfaceColor = Color(0xFF1E1E1E),
+        cardColor = Color(0xFF242424)
     )
 }
 
@@ -75,7 +85,12 @@ private val DarkExtendedColors = ExtendedColors(
     filterText = DarkFilterText,
     selectedItem = SelectedItemColor,
     accentTeal = AccentTeal,
-    goldColor = GoldColor
+    goldColor = GoldColor,
+    primaryColor = Color(0xFF4361EE),
+    accentColor = Color(0xFF3DDAD7),
+    darkBackground = Color(0xFF121212),
+    surfaceColor = Color(0xFF1E1E1E),
+    cardColor = Color(0xFF242424)
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -106,7 +121,12 @@ private val LightExtendedColors = ExtendedColors(
     filterText = LightFilterText,
     selectedItem = SelectedItemColor,
     accentTeal = AccentTeal,
-    goldColor = GoldColor
+    goldColor = GoldColor,
+    primaryColor = Color(0xFF4361EE),
+    accentColor = Color(0xFF3DDAD7),
+    darkBackground = Color(0xFFF5F5F5),
+    surfaceColor = Color(0xFFFFFFFF),
+    cardColor = Color(0xFFF0F0F0)
 )
 
 @Composable
