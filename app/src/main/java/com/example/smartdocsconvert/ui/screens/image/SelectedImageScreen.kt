@@ -92,7 +92,7 @@ fun SelectedImageScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Resimler", color = Color.White) },
+                title = { Text("Images", color = Color.White) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFF2A2A2A),
                     titleContentColor = Color.White
@@ -232,7 +232,6 @@ fun SelectedImageScreen(
                     color = Color(0xFF2196F3)
                 )
             }
-
         }
     }
 }

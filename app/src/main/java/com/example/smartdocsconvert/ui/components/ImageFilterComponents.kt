@@ -45,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -61,13 +62,19 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.offset
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.ui.focus.FocusRequester
@@ -76,6 +83,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.geometry.Offset
 
 @Composable
 fun TopActionsBar(
@@ -96,7 +104,7 @@ fun TopActionsBar(
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_back),
-                contentDescription = "Geri",
+                contentDescription = "Back",
                 tint = MaterialTheme.colorScheme.onSurface
             )
         }
@@ -117,7 +125,7 @@ fun TopActionsBar(
             } else {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_download),
-                    contentDescription = "Kaydet",
+                    contentDescription = "Save",
                     tint = MaterialTheme.colorScheme.onPrimary
                 )
             }
@@ -232,28 +240,28 @@ fun BottomNavigationBar(
     ) {
         BottomNavItem(
             icon = painterResource(id = R.drawable.ic_rotate),
-            label = "Döndür",
+            label = "Rotate",
             isSelected = activeFeature == "rotate",
             onClick = { onFeatureClick("rotate") }
         )
         
         BottomNavItem(
             icon = painterResource(id = R.drawable.ic_crop),
-            label = "Kırp",
+            label = "Crop",
             isSelected = activeFeature == "crop",
             onClick = { onFeatureClick("crop") }
         )
         
         BottomNavItem(
             icon = painterResource(id = R.drawable.ic_filter),
-            label = "Filtre",
+            label = "Filter",
             isSelected = activeFeature == "filter",
             onClick = { onFeatureClick("filter") }
         )
         
         BottomNavItem(
             icon = painterResource(id = R.drawable.ic_adjust),
-            label = "Ayarla",
+            label = "Adjust",
             isSelected = activeFeature == "adjust",
             onClick = { onFeatureClick("adjust") }
         )
@@ -326,7 +334,7 @@ fun ImageAdjustmentControls(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Görüntü Ayarları",
+                    text = "Image Settings",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -335,14 +343,14 @@ fun ImageAdjustmentControls(
                     IconButton(onClick = onResetClick) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_refresh),
-                            contentDescription = "Sıfırla"
+                            contentDescription = "Reset"
                         )
                     }
                     
                     IconButton(onClick = onAutoEnhanceClick) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_star),
-                            contentDescription = "Otomatik İyileştir"
+                            contentDescription = "Auto Enhance"
                         )
                     }
                 }
@@ -351,7 +359,7 @@ fun ImageAdjustmentControls(
             Spacer(modifier = Modifier.height(16.dp))
             
             Text(
-                text = "Parlaklık",
+                text = "Brightness",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -366,7 +374,7 @@ fun ImageAdjustmentControls(
             Spacer(modifier = Modifier.height(16.dp))
             
             Text(
-                text = "Kontrast",
+                text = "Contrast",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -401,7 +409,7 @@ fun FilterOptionsView(
                 .padding(16.dp)
         ) {
             Text(
-                text = "Filtreler",
+                text = "Filters",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 16.dp)
@@ -426,7 +434,7 @@ fun FilterOptionsView(
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 Text(
-                    text = "Filtre Yoğunluğu",
+                    text = "Filter Intensity",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -514,7 +522,7 @@ fun ImageControlActions(
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_rotate),
-                contentDescription = "Döndür",
+                contentDescription = "Rotate",
                 modifier = Modifier.size(28.dp)
             )
         }
@@ -528,34 +536,55 @@ fun DownloadOptionsDialog(
     onSaveAsImage: () -> Unit,
     onSaveAsPdf: () -> Unit
 ) {
-    val dialogOffset = remember { Animatable(if (visible) 0f else 300f) }
+    val dialogOffset = remember { Animatable(if (visible) 0f else 100f) }
+    val dialogScale = remember { Animatable(if (visible) 1f else 0.8f) }
     val dialogAlpha = remember { Animatable(if (visible) 1f else 0f) }
     var isDialogVisible by remember { mutableStateOf(visible) }
+    var selectedOption by remember { mutableStateOf<String?>(null) }
+
+    // Gradient animation
+    val infiniteTransition = rememberInfiniteTransition(label = "gradient")
+    val gradientOffset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "gradient animation"
+    )
 
     LaunchedEffect(visible) {
         if (visible) {
             isDialogVisible = true
-            dialogOffset.animateTo(
-                targetValue = 0f,
-                animationSpec = spring(
+            selectedOption = null
+            launch {
+                dialogScale.animateTo(1f, spring(
                     dampingRatio = Spring.DampingRatioMediumBouncy,
                     stiffness = Spring.StiffnessLow
-                )
-            )
-            dialogAlpha.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(300)
-            )
+                ))
+            }
+            launch {
+                dialogOffset.animateTo(0f, spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                ))
+            }
+            launch {
+                dialogAlpha.animateTo(1f, tween(300))
+            }
         } else {
-            dialogOffset.animateTo(
-                targetValue = 300f,
-                animationSpec = tween(150)
-            )
-            dialogAlpha.animateTo(
-                targetValue = 0f,
-                animationSpec = tween(150)
-            )
-            isDialogVisible = false
+            launch {
+                dialogScale.animateTo(0.8f, tween(200))
+            }
+            launch {
+                dialogOffset.animateTo(100f, tween(200))
+            }
+            launch {
+                dialogAlpha.animateTo(0f, tween(200))
+            }.invokeOnCompletion {
+                isDialogVisible = false
+            }
         }
     }
 
@@ -563,78 +592,146 @@ fun DownloadOptionsDialog(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .clickable(onClick = onDismiss)
-                .background(Color.Black.copy(alpha = 0.5f * dialogAlpha.value)),
-            contentAlignment = Alignment.Center
+                .background(Color.Black.copy(alpha = 0.6f))
         ) {
+            // Animated gradient background circles
+            Box(
+                modifier = Modifier
+                    .size(300.dp)
+                    .offset(x = (-100).dp, y = (-100).dp)
+                    .graphicsLayer {
+                        alpha = 0.1f + (gradientOffset * 0.1f)
+                    }
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(MaterialTheme.colorScheme.primary, Color.Transparent),
+                            radius = 300f * (0.8f + (gradientOffset * 0.4f))
+                        ),
+                        shape = CircleShape
+                    )
+            )
+            
+            Box(
+                modifier = Modifier
+                    .size(200.dp)
+                    .align(Alignment.BottomEnd)
+                    .offset(x = 50.dp, y = 50.dp)
+                    .graphicsLayer {
+                        alpha = 0.15f + (gradientOffset * 0.1f)
+                    }
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(Color(0xFF00BCD4), Color.Transparent),
+                            radius = 200f * (0.8f + (gradientOffset * 0.4f))
+                        ),
+                        shape = CircleShape
+                    )
+            )
+
             Card(
                 modifier = Modifier
-                    .fillMaxWidth(0.85f)
-                    .padding(16.dp)
+                    .padding(24.dp)
+                    .align(Alignment.Center)
+                    .fillMaxWidth(0.9f)
                     .graphicsLayer {
-                        alpha = dialogAlpha.value
-                        scaleX = 0.8f + (0.2f * dialogAlpha.value)
-                        scaleY = 0.8f + (0.2f * dialogAlpha.value)
                         translationY = dialogOffset.value
+                        scaleX = dialogScale.value
+                        scaleY = dialogScale.value
+                        alpha = dialogAlpha.value
                     }
-                    .clickable(enabled = false) {  },
-                shape = RoundedCornerShape(20.dp),
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { /* Prevent click through */ },
+                shape = RoundedCornerShape(32.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.background
                 ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                border = BorderStroke(
+                    width = 1.dp,
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.3f),
+                            Color.White.copy(alpha = 0.1f)
+                        )
+                    )
+                )
             ) {
-                Column(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.background,
+                                    MaterialTheme.colorScheme.background.copy(alpha = 0.8f)
+                                )
+                            )
+                        )
                 ) {
-                    Text(
-                        text = "İndirme Seçenekleri",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = Color(0xFF333333),
-                        modifier = Modifier.padding(bottom = 24.dp)
-                    )
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        DownloadOptionCard(
-                            icon = R.drawable.ic_image,
-                            text = "Görüntü",
-                            color = Color(0xFF4CAF50),
-                            modifier = Modifier.weight(1f),
-                            onClick = {
-                                onSaveAsImage()
-                            }
-                        )
-
-                        DownloadOptionCard(
-                            icon = R.drawable.ic_pdf,
-                            text = "PDF",
-                            color = Color(0xFFE91E63),
-                            modifier = Modifier.weight(1f),
-                            onClick = {
-                                onSaveAsPdf()
-                            }
-                        )
-                    }
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    TextButton(
-                        onClick = onDismiss,
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 8.dp)
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(32.dp)
                     ) {
-                        Text(
-                            text = "İptal",
-                            color = Color(0xFF757575),
-                            style = MaterialTheme.typography.labelLarge
-                        )
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "How would you like to save the file?",
+                                style = MaterialTheme.typography.headlineSmall,
+                                color = MaterialTheme.colorScheme.onBackground,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            DownloadOptionButton(
+                                icon = R.drawable.ic_image,
+                                text = "Image",
+                                description = "Save as JPG format",
+                                color = Color(0xFF4CAF50),
+                                modifier = Modifier.weight(1f),
+                                onClick = { 
+                                    selectedOption = "image"
+                                    onSaveAsImage()
+                                },
+                                isSelected = selectedOption == "image"
+                            )
+
+                            DownloadOptionButton(
+                                icon = R.drawable.ic_pdf,
+                                text = "PDF",
+                                description = "Save as PDF format",
+                                color = Color(0xFFE91E63),
+                                modifier = Modifier.weight(1f),
+                                onClick = { 
+                                    selectedOption = "pdf"
+                                    onSaveAsPdf()
+                                },
+                                isSelected = selectedOption == "pdf"
+                            )
+                        }
+
+                        TextButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
+                            )
+                        ) {
+                            Text(
+                                text = "Cancel",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                 }
             }
@@ -643,19 +740,21 @@ fun DownloadOptionsDialog(
 }
 
 @Composable
-fun DownloadOptionCard(
+private fun DownloadOptionButton(
     icon: Int,
     text: String,
+    description: String,
     color: Color,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isSelected: Boolean = false
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     
     Card(
         modifier = modifier
-            .aspectRatio(0.9f)
+            .height(180.dp)
             .graphicsLayer {
                 scaleX = if (isPressed) 0.95f else 1f
                 scaleY = if (isPressed) 0.95f else 1f
@@ -665,14 +764,13 @@ fun DownloadOptionCard(
                 indication = null,
                 onClick = onClick
             ),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = color.copy(alpha = 0.1f)
+            containerColor = if (isSelected) color.copy(alpha = 0.1f) else color.copy(alpha = 0.05f)
         ),
-        border = BorderStroke(1.dp, color.copy(alpha = 0.3f)),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 0.dp,
-            pressedElevation = 4.dp
+        border = BorderStroke(
+            width = if (isSelected) 2.dp else 1.dp,
+            color = if (isSelected) color else color.copy(alpha = 0.2f)
         )
     ) {
         Column(
@@ -682,20 +780,58 @@ fun DownloadOptionCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Icon(
-                painter = painterResource(id = icon),
-                contentDescription = text,
-                tint = color,
-                modifier = Modifier.size(48.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .background(
+                        color = if (isSelected) color.copy(alpha = 0.2f) else color.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(20.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = painterResource(id = icon),
+                    contentDescription = text,
+                    tint = color,
+                    modifier = Modifier.size(36.dp)
+                )
+            }
             
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             
             Text(
                 text = text,
+                style = MaterialTheme.typography.titleMedium,
                 color = Color(0xFF333333),
-                style = MaterialTheme.typography.titleMedium
+                fontWeight = FontWeight.Bold
             )
+            
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFF666666),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 8.dp, start = 8.dp, end = 8.dp)
+            )
+
+            if (isSelected) {
+                Card(
+                    modifier = Modifier
+                        .padding(top = 12.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = color.copy(alpha = 0.1f)
+                    )
+                ) {
+                    Text(
+                        text = "Selected",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = color,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
         }
     }
 }
@@ -812,7 +948,7 @@ fun DownloadAnimation(
                         Spacer(modifier = Modifier.height(16.dp))
                         
                         Text(
-                            text = "İndiriliyor",
+                            text = "Downloading",
                             style = MaterialTheme.typography.titleMedium,
                             color = Color(0xFF333333)
                         )
@@ -883,30 +1019,86 @@ fun DownloadConfirmationDialog(
     val dialogAlpha = remember { Animatable(if (visible) 1f else 0f) }
     var isDialogVisible by remember { mutableStateOf(visible) }
 
+    // Gradient animation
+    val infiniteTransition = rememberInfiniteTransition(label = "gradient")
+    val gradientOffset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "gradient animation"
+    )
+
     LaunchedEffect(visible) {
-        isDialogVisible = visible
         if (visible) {
-            dialogOffset.animateTo(0f)
-            dialogAlpha.animateTo(1f)
+            isDialogVisible = true
+            launch {
+                dialogOffset.animateTo(0f, spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                ))
+            }
+            launch {
+                dialogAlpha.animateTo(1f, tween(300))
+            }
         } else {
-            dialogAlpha.animateTo(0f)
-            dialogOffset.animateTo(300f)
+            launch {
+                dialogOffset.animateTo(300f, tween(200))
+            }
+            launch {
+                dialogAlpha.animateTo(0f, tween(200))
+            }.invokeOnCompletion {
+                isDialogVisible = false
+            }
         }
     }
-    
+
     if (isDialogVisible) {
         Box(
             modifier = modifier
                 .fillMaxSize()
-                .graphicsLayer { 
-                    alpha = dialogAlpha.value
-                }
-                .background(Color.Black.copy(alpha = 0.5f))
+                .background(Color.Black.copy(alpha = 0.6f))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
                 ) { onCancel() }
         ) {
+            // Animated gradient background circles
+            Box(
+                modifier = Modifier
+                    .size(300.dp)
+                    .offset(x = (-100).dp, y = (-100).dp)
+                    .graphicsLayer {
+                        alpha = 0.1f + (gradientOffset * 0.1f)
+                    }
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(MaterialTheme.colorScheme.primary, Color.Transparent),
+                            radius = 300f * (0.8f + (gradientOffset * 0.4f))
+                        ),
+                        shape = CircleShape
+                    )
+            )
+            
+            Box(
+                modifier = Modifier
+                    .size(200.dp)
+                    .align(Alignment.BottomEnd)
+                    .offset(x = 50.dp, y = 50.dp)
+                    .graphicsLayer {
+                        alpha = 0.15f + (gradientOffset * 0.1f)
+                    }
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(Color(0xFF00BCD4), Color.Transparent),
+                            radius = 200f * (0.8f + (gradientOffset * 0.4f))
+                        ),
+                        shape = CircleShape
+                    )
+            )
+
             Card(
                 modifier = Modifier
                     .padding(32.dp)
@@ -914,239 +1106,257 @@ fun DownloadConfirmationDialog(
                     .fillMaxWidth(0.95f)
                     .graphicsLayer {
                         translationY = dialogOffset.value
+                        alpha = dialogAlpha.value
                     }
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
                     ) {},
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(32.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.background
                 ),
-                elevation = CardDefaults.cardElevation(
-                    defaultElevation = 16.dp
-                ),
-                border = BorderStroke(1.dp, Color(0xFFE0E0E0))
+                border = BorderStroke(
+                    width = 1.dp,
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.3f),
+                            Color.White.copy(alpha = 0.1f)
+                        )
+                    )
+                )
             ) {
-                Column(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.background,
+                                    MaterialTheme.colorScheme.background.copy(alpha = 0.8f)
+                                )
+                            )
+                        )
                 ) {
-                    val titleText = if (downloadType == "pdf") "PDF İndirme" else "Görüntü İndirme"
-                    val iconRes = if (downloadType == "pdf") R.drawable.ic_pdf else R.drawable.ic_image
-                    val iconColor = if (downloadType == "pdf") Color(0xFFE91E63) else Color(0xFF4CAF50)
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(bottom = 24.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(id = iconRes),
-                            contentDescription = null,
-                            tint = iconColor,
-                            modifier = Modifier.size(32.dp)
-                        )
-                        
-                        Spacer(modifier = Modifier.width(12.dp))
-                        
-                        Text(
-                            text = titleText,
-                            style = MaterialTheme.typography.titleLarge,
-                            color = Color(0xFF333333)
-                        )
-                    }
-
-                    Card(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFFEDEDED)
-                        ),
-                        border = BorderStroke(1.dp, Color(0xFFDDDDDD))
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Column(
+                        val titleText = if (downloadType == "pdf") "Download PDF" else "Download Image"
+                        val iconRes = if (downloadType == "pdf") R.drawable.ic_pdf else R.drawable.ic_image
+                        val iconColor = if (downloadType == "pdf") Color(0xFFE91E63) else Color(0xFF4CAF50)
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(bottom = 24.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(id = iconRes),
+                                contentDescription = null,
+                                tint = iconColor,
+                                modifier = Modifier.size(32.dp)
+                            )
+                            
+                            Spacer(modifier = Modifier.width(12.dp))
+                            
+                            Text(
+                                text = titleText,
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                        }
+
+                        Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp)
+                                .padding(vertical = 8.dp),
+                            shape = RoundedCornerShape(24.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            ),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
                         ) {
-                            Text(
-                                text = "Dosya adı:",
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontWeight = FontWeight.SemiBold
-                                ),
-                                color = Color(0xFF505050)
-                            )
-
-                            val fileExtension = remember(filename) {
-                                filename.substringAfterLast(".", "")
-                            }
-
-                            val baseFilename = remember(filename) {
-                                filename.substringBeforeLast(".", "")
-                            }
-
-                            var textFieldValue by remember(baseFilename) { mutableStateOf(baseFilename) }
-                            val focusRequester = remember { FocusRequester() }
-
-                            LaunchedEffect(Unit) {
-                                delay(300)
-                                focusRequester.requestFocus()
-                            }
-                            
-                            OutlinedTextField(
-                                value = textFieldValue,
-                                onValueChange = { newValue ->
-                                    textFieldValue = newValue
-
-                                    val sanitizedValue = newValue.replace("[\\\\/:*?\"<>|]".toRegex(), "_")
-                                    if (sanitizedValue.isNotEmpty()) {
-                                        onFilenameChanged("$sanitizedValue.$fileExtension")
-                                    } else {
-                                        onFilenameChanged("document.$fileExtension")
-                                    }
-                                },
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(top = 8.dp, bottom = 4.dp)
-                                    .focusRequester(focusRequester),
-                                textStyle = MaterialTheme.typography.bodyLarge.copy(
-                                    color = Color.Black,
-                                    fontWeight = FontWeight.Medium
-                                ),
-                                singleLine = true,
-                                shape = RoundedCornerShape(12.dp),
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Text,
-                                    imeAction = ImeAction.Done
-                                ),
-                                keyboardActions = KeyboardActions(
-                                    onDone = { onConfirm() }
-                                ),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedContainerColor = Color.White,
-                                    unfocusedContainerColor = Color.White,
-                                    focusedBorderColor = iconColor,
-                                    unfocusedBorderColor = Color(0xFF9E9E9E),
-                                    cursorColor = iconColor,
-                                    focusedTextColor = Color.Black,
-                                    unfocusedTextColor = Color.Black,
-                                ),
-                                leadingIcon = if (textFieldValue.isNotEmpty()) {
-                                    {
-                                        IconButton(
-                                            onClick = {
-                                                textFieldValue = ""
-                                                onFilenameChanged("document.$fileExtension")
+                                    .padding(20.dp)
+                            ) {
+                                Text(
+                                    text = "File name:",
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = FontWeight.SemiBold
+                                    ),
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                                )
+
+                                val fileExtension = remember(filename) {
+                                    filename.substringAfterLast(".", "")
+                                }
+
+                                val baseFilename = remember(filename) {
+                                    filename.substringBeforeLast(".", "")
+                                }
+
+                                var textFieldValue by remember(baseFilename) { mutableStateOf(baseFilename) }
+                                val focusRequester = remember { FocusRequester() }
+
+                                LaunchedEffect(Unit) {
+                                    delay(300)
+                                    focusRequester.requestFocus()
+                                }
+                                
+                                OutlinedTextField(
+                                    value = textFieldValue,
+                                    onValueChange = { newValue ->
+                                        textFieldValue = newValue
+                                        val sanitizedValue = newValue.replace("[\\\\/:*?\"<>|]".toRegex(), "_")
+                                        if (sanitizedValue.isNotEmpty()) {
+                                            onFilenameChanged("$sanitizedValue.$fileExtension")
+                                        } else {
+                                            onFilenameChanged("document.$fileExtension")
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp, bottom = 4.dp)
+                                        .focusRequester(focusRequester),
+                                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                        color = MaterialTheme.colorScheme.onBackground,
+                                        fontWeight = FontWeight.Medium
+                                    ),
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(16.dp),
+                                    keyboardOptions = KeyboardOptions(
+                                        keyboardType = KeyboardType.Text,
+                                        imeAction = ImeAction.Done
+                                    ),
+                                    keyboardActions = KeyboardActions(
+                                        onDone = { onConfirm() }
+                                    ),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                        focusedBorderColor = if (downloadType == "pdf") Color(0xFFE91E63) else Color(0xFF4CAF50),
+                                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                                        cursorColor = if (downloadType == "pdf") Color(0xFFE91E63) else Color(0xFF4CAF50),
+                                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground
+                                    ),
+                                    leadingIcon = if (textFieldValue.isNotEmpty()) {
+                                        {
+                                            IconButton(
+                                                onClick = {
+                                                    textFieldValue = ""
+                                                    onFilenameChanged("document.$fileExtension")
+                                                }
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Clear,
+                                                    contentDescription = "Clear text",
+                                                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                                                )
                                             }
+                                        }
+                                    } else null,
+                                    trailingIcon = {
+                                        Box(
+                                            modifier = Modifier
+                                                .background(
+                                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                                    shape = RoundedCornerShape(8.dp)
+                                                )
+                                                .padding(horizontal = 8.dp, vertical = 4.dp)
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Clear,
-                                                contentDescription = "Clear text",
-                                                tint = Color.Gray
+                                            Text(
+                                                text = ".$fileExtension",
+                                                style = MaterialTheme.typography.bodyMedium.copy(
+                                                    fontWeight = FontWeight.Medium
+                                                ),
+                                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
                                             )
                                         }
                                     }
-                                } else null,
-                                trailingIcon = {
-                                    Box(
-                                        modifier = Modifier
-                                            .background(
-                                                color = Color(0xFFEEEEEE), 
-                                                shape = RoundedCornerShape(8.dp)
-                                            )
-                                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                                    ) {
-                                        Text(
-                                            text = ".$fileExtension",
-                                            style = MaterialTheme.typography.bodyMedium.copy(
-                                                fontWeight = FontWeight.Medium
-                                            ),
-                                            color = Color(0xFF555555)
-                                        )
-                                    }
-                                }
-                            )
-                        }
-                    }
-                    
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    if (onDownloadAllChanged != null) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 16.dp)
-                                .clickable { onDownloadAllChanged(!downloadAll) },
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Checkbox(
-                                checked = downloadAll,
-                                onCheckedChange = { onDownloadAllChanged(it) },
-                                colors = CheckboxDefaults.colors(
-                                    checkedColor = iconColor,
-                                    uncheckedColor = Color(0xFF757575)
                                 )
-                            )
-
-                            val labelText = if (downloadType == "pdf") {
-                                "Tüm resimleri PDF olarak birleştir"
-                            } else {
-                                "Tüm resimleri indir"
                             }
-                            
-                            Text(
-                                text = labelText,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = Color(0xFF333333),
-                                modifier = Modifier.padding(start = 8.dp)
-                            )
                         }
-                    }
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = onCancel,
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, Color(0xFFBDBDBD)),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = Color(0xFF505050)
-                            )
-                        ) {
-                            Text(
-                                "İptal",
-                                fontWeight = FontWeight.Medium
-                            )
+                        if (onDownloadAllChanged != null) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 16.dp)
+                                    .clickable { onDownloadAllChanged(!downloadAll) },
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = downloadAll,
+                                    onCheckedChange = { onDownloadAllChanged(it) },
+                                    colors = CheckboxDefaults.colors(
+                                        checkedColor = if (downloadType == "pdf") Color(0xFFE91E63) else Color(0xFF4CAF50),
+                                        uncheckedColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                                    )
+                                )
+
+                                val labelText = if (downloadType == "pdf") {
+                                    "Combine all images into PDF"
+                                } else {
+                                    "Download all images"
+                                }
+                                
+                                Text(
+                                    text = labelText,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onBackground,
+                                    modifier = Modifier.padding(start = 8.dp)
+                                )
+                            }
                         }
 
-                        Button(
-                            onClick = onConfirm,
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = iconColor
-                            ),
-                            elevation = ButtonDefaults.buttonElevation(
-                                defaultElevation = 4.dp
-                            )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_download),
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "İndir",
-                                fontWeight = FontWeight.SemiBold
-                            )
+                            OutlinedButton(
+                                onClick = onCancel,
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(16.dp),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.onBackground
+                                )
+                            ) {
+                                Text(
+                                    "Cancel",
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+
+                            Button(
+                                onClick = onConfirm,
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (downloadType == "pdf") Color(0xFFE91E63) else Color(0xFF4CAF50)
+                                ),
+                                elevation = ButtonDefaults.buttonElevation(
+                                    defaultElevation = 4.dp
+                                )
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_download),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    "Download",
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
                         }
                     }
                 }

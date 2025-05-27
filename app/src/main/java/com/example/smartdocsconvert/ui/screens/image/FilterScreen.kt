@@ -286,7 +286,7 @@ private fun FilterTopAppBar(onBackClick: () -> Unit) {
     TopAppBar(
         title = {
             Text(
-                "Filtreler",
+                "Filters",
                 color = MaterialTheme.extendedColors.filterText,
                 style = MaterialTheme.typography.titleLarge
             )
@@ -328,7 +328,7 @@ private fun LoadingOverlay() {
                 strokeWidth = 6.dp
             )
             Text(
-                text = "Resim iyileştiriliyor...",
+                text = "Enhancing image...",
                 color = Color.White,
                 style = MaterialTheme.typography.bodyLarge
             )

@@ -330,7 +330,7 @@ class ImageFilterViewModel @Inject constructor(
                Log.e("ImageFilterViewModel", "Error during crop: ${e.message}", e)
                 _uiState.update {
                     it.copy(
-                        toastMessage = "Kırpma işlemi sırasında hata oluştu: ${e.message}",
+                        toastMessage = "Error during crop: ${e.message}",
                         isLoading = false
                     )
                 }
@@ -381,7 +381,7 @@ class ImageFilterViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 _uiState.update {
-                    it.copy(toastMessage = "Görüntü kaydedilirken hata oluştu: ${e.message}")
+                    it.copy(toastMessage = "Error while saving image: ${e.message}")
                 }
             } finally {
                 _uiState.update { it.copy(isSaving = false) }
@@ -445,7 +445,7 @@ class ImageFilterViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 _uiState.update {
-                    it.copy(toastMessage = "Otomatik iyileştirme sırasında hata oluştu: ${e.message}")
+                    it.copy(toastMessage = "Error during auto enhancement: ${e.message}")
                 }
             } finally {
                 _uiState.update { it.copy(isLoading = false) }
@@ -564,7 +564,7 @@ class ImageFilterViewModel @Inject constructor(
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
-                        toastMessage = "Hazırlık sırasında hata oluştu: ${e.message}",
+                        toastMessage = "Error during preparation: ${e.message}",
                         showDownloadOptions = false
                     )
                 }
@@ -608,7 +608,7 @@ class ImageFilterViewModel @Inject constructor(
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
-                        toastMessage = "Hazırlık sırasında hata oluştu: ${e.message}",
+                        toastMessage = "Error during preparation: ${e.message}",
                         showDownloadOptions = false
                     )
                 }
@@ -830,7 +830,7 @@ class ImageFilterViewModel @Inject constructor(
                                         ?: "İndirme işlemi başarısız oldu"
                                     _uiState.update {
                                         it.copy(
-                                            toastMessage = "Görüntü kaydedilirken hata oluştu: $errorMsg",
+                                            toastMessage = "Error during download: $errorMsg",
                                             isDownloading = false
                                         )
                                     }
@@ -868,7 +868,7 @@ class ImageFilterViewModel @Inject constructor(
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
-                        toastMessage = "Görüntü kaydedilirken hata oluştu: ${e.message}",
+                        toastMessage = "Error during download: ${e.message}",
                         isDownloading = false
                     )
                 }
@@ -914,7 +914,7 @@ class ImageFilterViewModel @Inject constructor(
                                         ?: "İndirme işlemi başarısız oldu"
                                     _uiState.update {
                                         it.copy(
-                                            toastMessage = "PDF olarak kaydedilirken hata oluştu: $errorMsg",
+                                            toastMessage = "Error during download: $errorMsg",
                                             isDownloading = false
                                         )
                                     }
@@ -952,7 +952,7 @@ class ImageFilterViewModel @Inject constructor(
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
-                        toastMessage = "PDF olarak kaydedilirken hata oluştu: ${e.message}",
+                        toastMessage = "Error during download: ${e.message}",
                         isDownloading = false
                     )
                 }
@@ -1003,7 +1003,7 @@ class ImageFilterViewModel @Inject constructor(
                                         ?: "İndirme işlemi başarısız oldu"
                                     _uiState.update {
                                         it.copy(
-                                            toastMessage = "PDF olarak kaydedilirken hata oluştu: $errorMsg",
+                                            toastMessage = "Error during download: $errorMsg",
                                             isDownloading = false
                                         )
                                     }
@@ -1034,7 +1034,7 @@ class ImageFilterViewModel @Inject constructor(
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
-                        toastMessage = "PDF olarak kaydedilirken hata oluştu: ${e.message}",
+                        toastMessage = "Error during download: ${e.message}",
                         isDownloading = false
                     )
                 }
