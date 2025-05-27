@@ -44,11 +44,8 @@ fun SelectPermissionsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
-    
-    // Animation states for background elements
     val infiniteTransition = rememberInfiniteTransition(label = "background")
-    
-    // Primary circle animation
+
     val primaryCircleScale by infiniteTransition.animateFloat(
         initialValue = 0.8f,
         targetValue = 1.2f,
@@ -69,7 +66,6 @@ fun SelectPermissionsScreen(
         label = "primaryAlpha"
     )
 
-    // Secondary circle animation
     val secondaryCircleScale by infiniteTransition.animateFloat(
         initialValue = 0.9f,
         targetValue = 1.3f,
@@ -90,7 +86,6 @@ fun SelectPermissionsScreen(
         label = "secondaryAlpha"
     )
 
-    // Gradient rotation animation
     val gradientRotation by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
@@ -99,13 +94,11 @@ fun SelectPermissionsScreen(
         ),
         label = "gradientRotation"
     )
-    
-    // Galeri seçici
+
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris ->
         if (uris.isNotEmpty()) {
-            // Seçilen resimleri ImageEditorScreen'e yönlendir
             val encodedUris = uris.map { uri ->
                 URLEncoder.encode(uri.toString(), StandardCharsets.UTF_8.toString())
             }
@@ -113,40 +106,34 @@ fun SelectPermissionsScreen(
             selectedImageNavigator(urisString)
         }
     }
-    
-    // Kamera seçici
+
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
         if (success) {
             viewModel.tempCameraUri?.let { uri ->
-                // Çekilen fotoğrafı ImageEditorScreen'e yönlendir
                 val encodedUri = URLEncoder.encode(uri.toString(), StandardCharsets.UTF_8.toString())
                 selectedImageNavigator(encodedUri)
             }
         }
     }
-    
-    // Kamera izni kontrolü için
+
     var hasCameraPermission by remember { mutableStateOf(false) }
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         hasCameraPermission = isGranted
         if (isGranted) {
-            // İzin verildiyse kamerayı aç
             viewModel.createTempCameraUri(context)?.let { uri ->
                 cameraLauncher.launch(uri)
             }
         } else {
-            // İzin reddedildiyse kullanıcıya bildir
             coroutineScope.launch {
                 snackbarHostState.showSnackbar("Kamera kullanabilmek için izin gerekiyor")
             }
         }
     }
-    
-    // Show toast messages
+
     LaunchedEffect(uiState.toastMessage) {
         uiState.toastMessage?.let {
             coroutineScope.launch {
@@ -181,79 +168,76 @@ fun SelectPermissionsScreen(
                 .background(MaterialTheme.colorScheme.background)
                 .padding(paddingValues)
         ) {
-            // Animated background elements
             Box(
                 modifier = Modifier
-                    .size(400.dp)
-                    .offset(x = (-100).dp, y = (-100).dp)
-                    .graphicsLayer {
-                        scaleX = primaryCircleScale
-                        scaleY = primaryCircleScale
-                        alpha = primaryCircleAlpha
-                        rotationZ = gradientRotation
-                    }
-                    .background(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.primary,
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                                Color.Transparent
-                            )
-                        ),
-                        shape = CircleShape
-                    )
-            )
-            
-            Box(
-                modifier = Modifier
-                    .size(300.dp)
-                    .align(Alignment.BottomEnd)
-                    .offset(x = 50.dp, y = 50.dp)
-                    .graphicsLayer {
-                        scaleX = secondaryCircleScale
-                        scaleY = secondaryCircleScale
-                        alpha = secondaryCircleAlpha
-                        rotationZ = -gradientRotation
-                    }
-                    .background(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                Color(0xFF00BCD4),
-                                Color(0xFF00BCD4).copy(alpha = 0.2f),
-                                Color.Transparent
-                            )
-                        ),
-                        shape = CircleShape
-                    )
-            )
+                    .fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(500.dp)
+                        .graphicsLayer {
+                            scaleX = primaryCircleScale
+                            scaleY = primaryCircleScale
+                            alpha = primaryCircleAlpha
+                            rotationZ = gradientRotation
+                        }
+                        .background(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                                    Color.Transparent
+                                )
+                            ),
+                            shape = CircleShape
+                        )
+                )
+
+                Box(
+                    modifier = Modifier
+                        .size(400.dp)
+                        .graphicsLayer {
+                            scaleX = secondaryCircleScale
+                            scaleY = secondaryCircleScale
+                            alpha = secondaryCircleAlpha
+                            rotationZ = -gradientRotation
+                        }
+                        .background(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    Color(0xFF00BCD4).copy(alpha = 0.2f),
+                                    Color(0xFF00BCD4).copy(alpha = 0.1f),
+                                    Color.Transparent
+                                )
+                            ),
+                            shape = CircleShape
+                        )
+                )
+            }
 
             if (uiState.processedImageUris.isEmpty()) {
-                // Henüz görüntü seçilmedi, boş durumu göster
                 EmptyImagesState(
                     onSelectFromGallery = {
                         galleryLauncher.launch("image/*")
                     },
                     onTakePhoto = {
-                        // Kamera iznini kontrol et
                         when {
                             ContextCompat.checkSelfPermission(
                                 context,
                                 Manifest.permission.CAMERA
                             ) == PackageManager.PERMISSION_GRANTED -> {
-                                // İzin varsa kamerayı aç
                                 viewModel.createTempCameraUri(context)?.let { uri ->
                                     cameraLauncher.launch(uri)
                                 }
                             }
                             else -> {
-                                // İzin yoksa iste
                                 cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                             }
                         }
                     }
                 )
             } else {
-                // Normal görüntü işleme ekranı
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -262,16 +246,13 @@ fun SelectPermissionsScreen(
                         modifier = Modifier
                             .fillMaxSize()
                     ) {
-                        // Top bar
                         TopActionsBar(
                             onSaveClick = { viewModel.saveProcessedImage() },
                             onBackClick = { navigateUp() },
                             isSaving = uiState.isSaving
                         )
-                        
-                        // Main content
+
                         if (uiState.activeFeature == "crop") {
-                            // Crop view
                             ImageCropView(
                                 imageUri = uiState.processedImageUris[uiState.currentImageIndex],
                                 cropRect = uiState.cropRect,
@@ -281,12 +262,10 @@ fun SelectPermissionsScreen(
                                 modifier = Modifier.weight(1f)
                             )
                         } else {
-                            // Normal view
                             Box(
                                 modifier = Modifier.weight(1f),
                                 contentAlignment = Alignment.Center
                             ) {
-                                // Main image display
                                 val displayUri = if (
                                     uiState.croppedImageUris.size > uiState.currentImageIndex &&
                                     uiState.croppedImageUris[uiState.currentImageIndex] != null
@@ -304,8 +283,7 @@ fun SelectPermissionsScreen(
                                     offsetY = uiState.offsetY,
                                     rotationY = uiState.rotationY
                                 )
-                                
-                                // Loading indicator
+
                                 if (uiState.isLoading) {
                                     Box(
                                         modifier = Modifier
@@ -318,8 +296,7 @@ fun SelectPermissionsScreen(
                                 }
                             }
                         }
-                        
-                        // Thumbnails row
+
                         if (uiState.processedImageUris.size > 1) {
                             ImageThumbnails(
                                 imageUris = uiState.processedImageUris,
@@ -327,8 +304,7 @@ fun SelectPermissionsScreen(
                                 onImageSelected = { viewModel.onImageSelected(it) }
                             )
                         }
-                        
-                        // Feature UI based on active feature
+
                         AnimatedVisibility(
                             visible = uiState.activeFeature == "adjust",
                             enter = fadeIn() + slideInVertically { it },
@@ -366,8 +342,7 @@ fun SelectPermissionsScreen(
                                 onRotateClick = { viewModel.rotateImage() }
                             )
                         }
-                        
-                        // Bottom navigation
+
                         BottomNavigationBar(
                             activeFeature = uiState.activeFeature,
                             onFeatureClick = { feature ->

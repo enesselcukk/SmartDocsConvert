@@ -3,6 +3,7 @@ package com.example.smartdocsconvert.ui.screens.image
 import android.net.Uri
 import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -35,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -62,8 +64,46 @@ fun SelectedImageScreen(
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
 
-    // Pulse animation for the continue icon
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val infiniteTransition = rememberInfiniteTransition(label = "background")
+    val primaryGradientScale by infiniteTransition.animateFloat(
+        initialValue = 0.8f,
+        targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "primaryScale"
+    )
+    
+    val primaryGradientAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.2f,
+        targetValue = 0.4f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "primaryAlpha"
+    )
+
+    val secondaryGradientScale by infiniteTransition.animateFloat(
+        initialValue = 0.9f,
+        targetValue = 1.3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "secondaryScale"
+    )
+
+    val gradientRotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(15000, easing = LinearEasing)
+        ),
+        label = "gradientRotation"
+    )
+
     val scaleIcon by infiniteTransition.animateFloat(
         initialValue = 1f,
         targetValue = 1.2f,
@@ -73,8 +113,7 @@ fun SelectedImageScreen(
         ),
         label = "scale"
     )
-    
-    // Color animation for the continue icon
+
     val colorIcon by infiniteTransition.animateColor(
         initialValue = Color(0xFF2196F3),
         targetValue = Color(0xFF64B5F6),
@@ -138,19 +177,64 @@ fun SelectedImageScreen(
                 .background(Color(0xFF1A1A1A))
                 .padding(paddingValues)
         ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(600.dp)
+                        .graphicsLayer {
+                            scaleX = primaryGradientScale
+                            scaleY = primaryGradientScale
+                            alpha = primaryGradientAlpha
+                            rotationZ = gradientRotation
+                        }
+                        .background(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    Color(0xFF1976D2).copy(alpha = 0.2f),
+                                    Color(0xFF1976D2).copy(alpha = 0.1f),
+                                    Color.Transparent
+                                )
+                            ),
+                            shape = CircleShape
+                        )
+                )
+
+                Box(
+                    modifier = Modifier
+                        .size(400.dp)
+                        .graphicsLayer {
+                            scaleX = secondaryGradientScale
+                            scaleY = secondaryGradientScale
+                            alpha = 0.3f
+                            rotationZ = -gradientRotation
+                        }
+                        .background(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    Color(0xFF00BCD4).copy(alpha = 0.2f),
+                                    Color(0xFF00BCD4).copy(alpha = 0.1f),
+                                    Color.Transparent
+                                )
+                            ),
+                            shape = CircleShape
+                        )
+                )
+            }
+
             val transformableState = rememberTransformableState { zoomChange, offsetChange, _ ->
                 scale = (scale * zoomChange).coerceIn(0.5f, 3f)
                 offsetX += offsetChange.x
                 offsetY += offsetChange.y
             }
 
-            // Main image area with navigation arrows
             Box(
                 modifier = Modifier
                     .fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                // Main image
                 Image(
                     painter = rememberAsyncImagePainter(
                         ImageRequest.Builder(LocalContext.current)
@@ -171,13 +255,11 @@ fun SelectedImageScreen(
                     contentScale = ContentScale.Fit
                 )
 
-                // Navigation arrows and counter on top of the image
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(16.dp)
                 ) {
-                    // Left arrow for previous image
                     if (currentImageIndex > 0) {
                         IconButton(
                             onClick = { currentImageIndex-- },
@@ -194,7 +276,6 @@ fun SelectedImageScreen(
                         }
                     }
 
-                    // Right arrow for next image
                     if (currentImageIndex < imageUris.size - 1) {
                         IconButton(
                             onClick = { currentImageIndex++ },
@@ -211,7 +292,6 @@ fun SelectedImageScreen(
                         }
                     }
 
-                    // Image counter
                     Text(
                         text = "${currentImageIndex + 1}/${imageUris.size}",
                         color = Color.White,

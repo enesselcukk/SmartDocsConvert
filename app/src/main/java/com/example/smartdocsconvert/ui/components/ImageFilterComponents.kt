@@ -66,14 +66,11 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.TextButton
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.offset
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
@@ -83,7 +80,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.ui.geometry.Offset
 
 @Composable
 fun TopActionsBar(
@@ -529,312 +525,6 @@ fun ImageControlActions(
     }
 }
 
-@Composable
-fun DownloadOptionsDialog(
-    visible: Boolean,
-    onDismiss: () -> Unit,
-    onSaveAsImage: () -> Unit,
-    onSaveAsPdf: () -> Unit
-) {
-    val dialogOffset = remember { Animatable(if (visible) 0f else 100f) }
-    val dialogScale = remember { Animatable(if (visible) 1f else 0.8f) }
-    val dialogAlpha = remember { Animatable(if (visible) 1f else 0f) }
-    var isDialogVisible by remember { mutableStateOf(visible) }
-    var selectedOption by remember { mutableStateOf<String?>(null) }
-
-    // Gradient animation
-    val infiniteTransition = rememberInfiniteTransition(label = "gradient")
-    val gradientOffset by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(3000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "gradient animation"
-    )
-
-    LaunchedEffect(visible) {
-        if (visible) {
-            isDialogVisible = true
-            selectedOption = null
-            launch {
-                dialogScale.animateTo(1f, spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessLow
-                ))
-            }
-            launch {
-                dialogOffset.animateTo(0f, spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessLow
-                ))
-            }
-            launch {
-                dialogAlpha.animateTo(1f, tween(300))
-            }
-        } else {
-            launch {
-                dialogScale.animateTo(0.8f, tween(200))
-            }
-            launch {
-                dialogOffset.animateTo(100f, tween(200))
-            }
-            launch {
-                dialogAlpha.animateTo(0f, tween(200))
-            }.invokeOnCompletion {
-                isDialogVisible = false
-            }
-        }
-    }
-
-    if (isDialogVisible) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.6f))
-        ) {
-            // Animated gradient background circles
-            Box(
-                modifier = Modifier
-                    .size(300.dp)
-                    .offset(x = (-100).dp, y = (-100).dp)
-                    .graphicsLayer {
-                        alpha = 0.1f + (gradientOffset * 0.1f)
-                    }
-                    .background(
-                        brush = Brush.radialGradient(
-                            colors = listOf(MaterialTheme.colorScheme.primary, Color.Transparent),
-                            radius = 300f * (0.8f + (gradientOffset * 0.4f))
-                        ),
-                        shape = CircleShape
-                    )
-            )
-            
-            Box(
-                modifier = Modifier
-                    .size(200.dp)
-                    .align(Alignment.BottomEnd)
-                    .offset(x = 50.dp, y = 50.dp)
-                    .graphicsLayer {
-                        alpha = 0.15f + (gradientOffset * 0.1f)
-                    }
-                    .background(
-                        brush = Brush.radialGradient(
-                            colors = listOf(Color(0xFF00BCD4), Color.Transparent),
-                            radius = 200f * (0.8f + (gradientOffset * 0.4f))
-                        ),
-                        shape = CircleShape
-                    )
-            )
-
-            Card(
-                modifier = Modifier
-                    .padding(24.dp)
-                    .align(Alignment.Center)
-                    .fillMaxWidth(0.9f)
-                    .graphicsLayer {
-                        translationY = dialogOffset.value
-                        scaleX = dialogScale.value
-                        scaleY = dialogScale.value
-                        alpha = dialogAlpha.value
-                    }
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) { /* Prevent click through */ },
-                shape = RoundedCornerShape(32.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                ),
-                border = BorderStroke(
-                    width = 1.dp,
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = 0.3f),
-                            Color.White.copy(alpha = 0.1f)
-                        )
-                    )
-                )
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.background,
-                                    MaterialTheme.colorScheme.background.copy(alpha = 0.8f)
-                                )
-                            )
-                        )
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(32.dp)
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = "How would you like to save the file?",
-                                style = MaterialTheme.typography.headlineSmall,
-                                color = MaterialTheme.colorScheme.onBackground,
-                                fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            DownloadOptionButton(
-                                icon = R.drawable.ic_image,
-                                text = "Image",
-                                description = "Save as JPG format",
-                                color = Color(0xFF4CAF50),
-                                modifier = Modifier.weight(1f),
-                                onClick = { 
-                                    selectedOption = "image"
-                                    onSaveAsImage()
-                                },
-                                isSelected = selectedOption == "image"
-                            )
-
-                            DownloadOptionButton(
-                                icon = R.drawable.ic_pdf,
-                                text = "PDF",
-                                description = "Save as PDF format",
-                                color = Color(0xFFE91E63),
-                                modifier = Modifier.weight(1f),
-                                onClick = { 
-                                    selectedOption = "pdf"
-                                    onSaveAsPdf()
-                                },
-                                isSelected = selectedOption == "pdf"
-                            )
-                        }
-
-                        TextButton(
-                            onClick = onDismiss,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.textButtonColors(
-                                contentColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
-                            )
-                        ) {
-                            Text(
-                                text = "Cancel",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DownloadOptionButton(
-    icon: Int,
-    text: String,
-    description: String,
-    color: Color,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    isSelected: Boolean = false
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    
-    Card(
-        modifier = modifier
-            .height(180.dp)
-            .graphicsLayer {
-                scaleX = if (isPressed) 0.95f else 1f
-                scaleY = if (isPressed) 0.95f else 1f
-            }
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            ),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) color.copy(alpha = 0.1f) else color.copy(alpha = 0.05f)
-        ),
-        border = BorderStroke(
-            width = if (isSelected) 2.dp else 1.dp,
-            color = if (isSelected) color else color.copy(alpha = 0.2f)
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .background(
-                        color = if (isSelected) color.copy(alpha = 0.2f) else color.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(20.dp)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    painter = painterResource(id = icon),
-                    contentDescription = text,
-                    tint = color,
-                    modifier = Modifier.size(36.dp)
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Text(
-                text = text,
-                style = MaterialTheme.typography.titleMedium,
-                color = Color(0xFF333333),
-                fontWeight = FontWeight.Bold
-            )
-            
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFF666666),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 8.dp, start = 8.dp, end = 8.dp)
-            )
-
-            if (isSelected) {
-                Card(
-                    modifier = Modifier
-                        .padding(top = 12.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = color.copy(alpha = 0.1f)
-                    )
-                ) {
-                    Text(
-                        text = "Selected",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = color,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-        }
-    }
-}
 
 @Composable
 fun DownloadAnimation(
@@ -960,50 +650,6 @@ fun DownloadAnimation(
 }
 
 @Composable
-fun AnimatedSaveButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    
-    val buttonSize = 56.dp
-    
-    Box(
-        modifier = modifier
-            .padding(16.dp)
-            .size(buttonSize)
-            .graphicsLayer {
-                scaleX = if (isPressed) 0.9f else 1f
-                scaleY = if (isPressed) 0.9f else 1f
-            }
-            .shadow(8.dp, CircleShape)
-            .background(
-                brush = androidx.compose.ui.graphics.Brush.linearGradient(
-                    colors = listOf(
-                        Color(0xFF2196F3),
-                        Color(0xFF03A9F4)
-                    )
-                ),
-                shape = CircleShape
-            )
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            painter = painterResource(id = R.drawable.ic_download),
-            contentDescription = "Save",
-            tint = Color.White,
-            modifier = Modifier.size(24.dp)
-        )
-    }
-}
-
-@Composable
 fun DownloadConfirmationDialog(
     visible: Boolean,
     filename: String,
@@ -1019,7 +665,6 @@ fun DownloadConfirmationDialog(
     val dialogAlpha = remember { Animatable(if (visible) 1f else 0f) }
     var isDialogVisible by remember { mutableStateOf(visible) }
 
-    // Gradient animation
     val infiniteTransition = rememberInfiniteTransition(label = "gradient")
     val gradientOffset by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -1065,7 +710,6 @@ fun DownloadConfirmationDialog(
                     indication = null
                 ) { onCancel() }
         ) {
-            // Animated gradient background circles
             Box(
                 modifier = Modifier
                     .size(300.dp)
@@ -1349,6 +993,7 @@ fun DownloadConfirmationDialog(
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_download),
                                     contentDescription = null,
+                                    tint = if (downloadType == "pdf") Color(0xFFE91E63) else Color(0xFF4CAF50),
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
