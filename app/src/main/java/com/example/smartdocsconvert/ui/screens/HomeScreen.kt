@@ -1,7 +1,10 @@
 package com.example.smartdocsconvert.ui.screens
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.text.format.Formatter
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
@@ -51,6 +54,7 @@ import com.example.smartdocsconvert.ui.viewmodel.FileViewModel
 import com.example.smartdocsconvert.ui.viewmodel.SortType
 import com.example.smartdocsconvert.ui.viewmodel.ViewType
 import com.example.smartdocsconvert.di.PermissionHelperEntryPoint
+import com.example.smartdocsconvert.util.getUri
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -911,13 +915,24 @@ private fun DocumentItem(
     document: DocumentModel,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
     val primaryColor = MaterialTheme.colorScheme.primary
     val cardColor = MaterialTheme.colorScheme.surfaceVariant
     
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .clickable { 
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(context.getUri(document.path), "application/pdf")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                try {
+                    context.startActivity(intent)
+                } catch (e: ActivityNotFoundException) {
+                    Toast.makeText(context, "No PDF viewer app found", Toast.LENGTH_SHORT).show()
+                }
+            },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = cardColor
@@ -1000,6 +1015,7 @@ private fun DocumentGridItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val primaryColor = MaterialTheme.colorScheme.primary
     val cardColor = MaterialTheme.colorScheme.surfaceVariant
     
@@ -1007,7 +1023,17 @@ private fun DocumentGridItem(
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(0.8f)
-            .clickable { onClick() },
+            .clickable { 
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(context.getUri(document.path), "application/pdf")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                try {
+                    context.startActivity(intent)
+                } catch (e: ActivityNotFoundException) {
+                    Toast.makeText(context, "No PDF viewer app found", Toast.LENGTH_SHORT).show()
+                }
+            },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = cardColor

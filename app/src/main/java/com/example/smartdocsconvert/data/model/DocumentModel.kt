@@ -1,5 +1,8 @@
 package com.example.smartdocsconvert.data.model
 
+import android.content.Context
+import android.net.Uri
+import androidx.core.content.FileProvider
 import com.example.smartdocsconvert.R
 import java.io.File
 import java.util.Date
@@ -45,4 +48,6 @@ data class DocumentModel(
             else -> R.drawable.ic_file
         }
     }
+
+
 } 
