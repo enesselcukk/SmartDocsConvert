@@ -71,6 +71,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.offset
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
@@ -80,6 +81,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.padding
 
 @Composable
 fun TopActionsBar(
@@ -981,26 +988,35 @@ fun DownloadConfirmationDialog(
 
                             Button(
                                 onClick = onConfirm,
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(44.dp),
                                 shape = RoundedCornerShape(16.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = if (downloadType == "pdf") Color(0xFFE91E63) else Color(0xFF4CAF50)
                                 ),
-                                elevation = ButtonDefaults.buttonElevation(
-                                    defaultElevation = 4.dp
-                                )
+                                contentPadding = PaddingValues(horizontal = 12.dp)
                             ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_download),
-                                    contentDescription = null,
-                                    tint = if (downloadType == "pdf") Color(0xFFE91E63) else Color(0xFF4CAF50),
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    "Download",
-                                    fontWeight = FontWeight.SemiBold
-                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_download),
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Download",
+                                        color = Color.White,
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    )
+                                }
                             }
                         }
                     }
