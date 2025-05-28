@@ -39,9 +39,7 @@ import com.example.smartdocsconvert.ui.components.autoEnhanceImage
 import com.example.smartdocsconvert.ui.components.rememberImageTransformableState
 import com.example.smartdocsconvert.ui.theme.extendedColors
 import com.example.smartdocsconvert.ui.viewmodel.ImageFilterViewModel
-import com.example.smartdocsconvert.ui.components.DownloadOptionsDialog
 import com.example.smartdocsconvert.ui.components.DownloadAnimation
-import com.example.smartdocsconvert.ui.components.AnimatedSaveButton
 import com.example.smartdocsconvert.ui.components.DownloadConfirmationDialog
 import kotlinx.coroutines.delay
 import androidx.compose.foundation.isSystemInDarkTheme
