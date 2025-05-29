@@ -45,7 +45,6 @@ import kotlinx.coroutines.delay
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.text.style.TextAlign
 
 @SuppressLint("RememberReturnType")
 @Composable
@@ -213,8 +212,8 @@ fun FilterScreen(
                 // Primary gradient circle
                 Box(
                     modifier = Modifier
-                        .size(700.dp)
-                        .offset(x = (-50).dp, y = (-50).dp)
+                        .fillMaxSize()
+                        .aspectRatio(1f)
                         .graphicsLayer {
                             scaleX = primaryGradientScale
                             scaleY = primaryGradientScale
@@ -236,8 +235,8 @@ fun FilterScreen(
                 // Secondary gradient circle
                 Box(
                     modifier = Modifier
-                        .size(500.dp)
-                        .offset(x = 50.dp, y = 50.dp)
+                        .fillMaxSize(0.8f)
+                        .aspectRatio(1f)
                         .graphicsLayer {
                             scaleX = secondaryGradientScale
                             scaleY = secondaryGradientScale
@@ -271,11 +270,8 @@ fun FilterScreen(
                         .fillMaxWidth(),
                     contentAlignment = Alignment.Center
                 ) {
-                    when {
-                        uiState.isLoading || uiState.isImageLoading -> {
-                            LoadingOverlay()
-                        }
-                        uiState.activeFeature == "crop" -> {
+                    when (uiState.activeFeature) {
+                        "crop" -> {
                             if (uiState.processedImageUris.isNotEmpty() && uiState.currentImageIndex < uiState.processedImageUris.size) {
                                 val defaultCropRect = Rect(0.1f, 0.1f, 0.9f, 0.9f)
                                 val currentCropRect = if (uiState.cropRect == Rect(0f, 0f, 1f, 1f)) {
@@ -293,7 +289,11 @@ fun FilterScreen(
                                     uiState = uiState
                                 )
                             } else {
-                                EmptyStateMessage(message = "No image available to crop")
+                                Text(
+                                    text = "No image available to crop",
+                                    color = Color.White,
+                                    modifier = Modifier.padding(16.dp)
+                                )
                             }
                         }
                         else -> {
@@ -314,9 +314,17 @@ fun FilterScreen(
                                     viewModel = viewModel
                                 )
                             } else {
-                                EmptyStateMessage(message = "No images available to edit")
+                                Text(
+                                    text = "No images available to edit",
+                                    color = Color.White,
+                                    modifier = Modifier.padding(16.dp)
+                                )
                             }
                         }
+                    }
+
+                    if (uiState.isLoading || uiState.isImageLoading) {
+                        LoadingOverlay()
                     }
 
                     DownloadAnimation(visible = uiState.showDownloadAnimation)
@@ -595,76 +603,6 @@ private fun DownloadOption(
             text = text,
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurface
-        )
-    }
-}
-
-@Composable
-private fun ErrorMessage(
-    error: String,
-    onRetry: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            painter = painterResource(id = R.drawable.ic_error),
-            contentDescription = "Error",
-            tint = MaterialTheme.colorScheme.error,
-            modifier = Modifier.size(48.dp)
-        )
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        Text(
-            text = error,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onBackground,
-            textAlign = TextAlign.Center
-        )
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        Button(
-            onClick = onRetry,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            )
-        ) {
-            Text("Retry")
-        }
-    }
-}
-
-@Composable
-private fun EmptyStateMessage(
-    message: String
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            painter = painterResource(id = R.drawable.ic_empty_file),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
-            modifier = Modifier.size(48.dp)
-        )
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onBackground,
-            textAlign = TextAlign.Center
         )
     }
 }
